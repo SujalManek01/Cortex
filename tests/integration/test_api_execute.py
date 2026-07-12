@@ -29,8 +29,10 @@ from backend.models.error_codes import ErrorCode
 def _open_notepad_body() -> dict:
     """Minimal valid request body: open notepad (always safe/registered in test config)."""
     return {
-        "goal": "Open Notepad",
-        "steps": [{"action": "application.open", "parameters": {"app": "notepad"}}],
+        "version": "1.0",
+        "plan": {
+            "steps": [{"capability": "application.open", "target": "notepad"}],
+        }
     }
 
 
@@ -67,8 +69,8 @@ class TestExecuteHappyPath:
         with patch("backend.executors.application_open.subprocess.Popen"):
             response = await http_client.post("/execute", json=_open_notepad_body())
         data = response.json()
-        assert "plan_id" in data
-        assert data["plan_id"] is not None
+        assert "execution_id" in data
+        assert data["execution_id"] is not None
 
     async def test_execute_response_status_completed(self, http_client: AsyncClient):
         with patch("backend.executors.application_open.subprocess.Popen"):
@@ -80,31 +82,31 @@ class TestExecuteHappyPath:
         with patch("backend.executors.application_open.subprocess.Popen"):
             response = await http_client.post("/execute", json=_open_notepad_body())
         data = response.json()
-        assert "step_results" in data
-        assert len(data["step_results"]) == 1
-        assert data["step_results"][0]["success"] is True
+        assert "results" in data
+        assert len(data["results"]) == 1
+        assert data["results"][0]["status"] == "success"
 
     async def test_backend_generates_plan_id(self, http_client: AsyncClient):
         """Two identical requests must produce different plan IDs."""
         with patch("backend.executors.application_open.subprocess.Popen"):
             r1 = await http_client.post("/execute", json=_open_notepad_body())
             r2 = await http_client.post("/execute", json=_open_notepad_body())
-        assert r1.json()["plan_id"] != r2.json()["plan_id"]
+        assert r1.json()["execution_id"] != r2.json()["execution_id"]
 
 
 # ── POST /execute validation failures (400) ────────────────────────────────────
 
 class TestExecuteValidationFailures:
-    async def test_empty_goal_returns_400(self, http_client: AsyncClient):
-        body = {"goal": "", "steps": [{"action": "application.open", "parameters": {"app": "notepad"}}]}
+    async def test_empty_steps_returns_400(self, http_client: AsyncClient):
+        body = {"version": "1.0", "plan": {"steps": []}}
         response = await http_client.post("/execute", json=body)
         # Pydantic min_length=1 raises 422; our validator raises 400.
         assert response.status_code in (400, 422)
 
     async def test_unknown_action_returns_400(self, http_client: AsyncClient):
         body = {
-            "goal": "Do something",
-            "steps": [{"action": "browser.open", "parameters": {"url": "https://x.com"}}],
+            "version": "1.0",
+            "plan": {"steps": [{"capability": "browser.open", "target": "https://x.com"}]},
         }
         response = await http_client.post("/execute", json=body)
         assert response.status_code == 400
@@ -113,8 +115,8 @@ class TestExecuteValidationFailures:
 
     async def test_invalid_action_format_returns_400(self, http_client: AsyncClient):
         body = {
-            "goal": "Do something",
-            "steps": [{"action": "openapp", "parameters": {}}],
+            "version": "1.0",
+            "plan": {"steps": [{"capability": "openapp", "target": ""}]},
         }
         response = await http_client.post("/execute", json=body)
         assert response.status_code == 400
@@ -125,8 +127,8 @@ class TestExecuteValidationFailures:
 class TestExecuteSafetyViolations:
     async def test_unregistered_app_returns_403(self, http_client: AsyncClient):
         body = {
-            "goal": "Open dangerous app",
-            "steps": [{"action": "application.open", "parameters": {"app": "malicious_app"}}],
+            "version": "1.0",
+            "plan": {"steps": [{"capability": "application.open", "target": "malicious_app"}]},
         }
         response = await http_client.post("/execute", json=body)
         assert response.status_code == 403
@@ -135,16 +137,16 @@ class TestExecuteSafetyViolations:
 
     async def test_raw_path_in_parameters_returns_403(self, http_client: AsyncClient):
         body = {
-            "goal": "Open raw path",
-            "steps": [{"action": "application.open", "parameters": {"app": r"C:\Windows\cmd.exe"}}],
+            "version": "1.0",
+            "plan": {"steps": [{"capability": "application.open", "target": r"C:\Windows\cmd.exe"}]},
         }
         response = await http_client.post("/execute", json=body)
         assert response.status_code == 403
 
     async def test_unknown_alias_returns_403(self, http_client: AsyncClient):
         body = {
-            "goal": "Open secret folder",
-            "steps": [{"action": "folder.open", "parameters": {"alias": "secret"}}],
+            "version": "1.0",
+            "plan": {"steps": [{"capability": "folder.open", "target": "secret"}]},
         }
         response = await http_client.post("/execute", json=body)
         assert response.status_code == 403

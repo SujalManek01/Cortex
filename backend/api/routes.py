@@ -15,7 +15,8 @@ from fastapi.responses import JSONResponse
 
 from backend.engine.execution_engine import ConcurrentExecutionError, ExecutionEngine
 from backend.models.execution_state import ExecutionState, PlanExecutionState
-from backend.planner.stub_planner import ExecuteRequest, StubPlanner
+from backend.planner.stub_planner import StubPlanner
+from backend.schemas.api import ExecuteRequest, ExecuteResponse, ExecutionResultSchema, ExecutionSummary
 from backend.safety.safety_policy import SafetyPolicy, SafetyViolation
 from backend.validator.validator import PlanValidator, ValidationError
 
@@ -44,7 +45,7 @@ def _engine(request: Request) -> ExecutionEngine:
 
 @router.post(
     "/execute",
-    response_model=PlanExecutionState,
+    response_model=ExecuteResponse,
     summary="Execute an ActionPlan",
     description=(
         "Accepts a goal and pre-formed steps. "
@@ -59,7 +60,7 @@ def _engine(request: Request) -> ExecutionEngine:
         500: {"description": "Unexpected internal error."},
     },
 )
-async def execute_plan(request: Request, body: ExecuteRequest) -> PlanExecutionState:
+async def execute_plan(request: Request, body: ExecuteRequest) -> ExecuteResponse:
     """Submit an execution request. Validate, enforce safety, then execute."""
     planner = _planner(request)
     validator = _validator(request)
@@ -106,7 +107,49 @@ async def execute_plan(request: Request, body: ExecuteRequest) -> PlanExecutionS
             "message": f"Unexpected engine error: {exc}",
         }) from exc
 
-    return state
+    # Step 5: Map to Sprint 002 ExecuteResponse API contract.
+    successful = sum(1 for r in state.step_results if r.success)
+    failed = sum(1 for r in state.step_results if not r.success)
+    duration = 0
+    if state.started_at and state.finished_at:
+        duration = int((state.finished_at - state.started_at).total_seconds() * 1000)
+
+    results = []
+    for i, res in enumerate(state.step_results):
+        step_def = next((s for s in plan.steps if s.id == res.step_id), None)
+        capability = step_def.action if step_def else ""
+        target = ""
+        if step_def:
+            target = step_def.parameters.get("target") or step_def.parameters.get("app") or step_def.parameters.get("alias") or step_def.parameters.get("url") or ""
+            
+        error_dict = None
+        if not res.success:
+            error_dict = {
+                "code": res.error_code.value if res.error_code else "INTERNAL_ERROR",
+                "message": res.message
+            }
+            
+        results.append(ExecutionResultSchema(
+            step=i + 1,
+            capability=capability,
+            target=str(target),
+            status="success" if res.success else "failed",
+            duration=int(res.duration_ms),
+            error=error_dict
+        ))
+
+    return ExecuteResponse(
+        execution_id=state.plan_id,
+        status=state.status.value,
+        duration=duration,
+        summary=ExecutionSummary(
+            successful=successful,
+            failed=failed,
+            total=len(state.step_results),
+            duration=duration,
+        ),
+        results=results
+    )
 
 
 @router.get(

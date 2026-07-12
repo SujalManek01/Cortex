@@ -36,13 +36,6 @@ class TestPlanValidatorSchemaChecks:
         plan = make_plan()
         validator.validate(plan)  # Should not raise.
 
-    def test_empty_goal_raises(self, real_registry):
-        validator = PlanValidator(real_registry)
-        plan = make_plan(goal="   ")
-        with pytest.raises(ValidationError) as exc_info:
-            validator.validate(plan)
-        assert exc_info.value.error_code == ErrorCode.INVALID_PLAN
-
     def test_empty_steps_raises(self, real_registry):
         validator = PlanValidator(real_registry)
         plan = make_plan(steps=[])

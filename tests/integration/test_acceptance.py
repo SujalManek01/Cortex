@@ -44,7 +44,7 @@ from backend.models.action_plan import ActionPlan, ActionStep
 from backend.models.action_result import ActionResult
 from backend.models.error_codes import ErrorCode
 from backend.models.execution_state import ExecutionState
-from backend.planner.stub_planner import ExecuteRequest, ExecuteStepRequest, StubPlanner
+from backend.planner.stub_planner import StubPlanner
 from backend.registry.action_registry import ActionRegistry
 from backend.safety.safety_policy import SafetyPolicy, SafetyViolation
 from backend.validator.validator import PlanValidator, ValidationError
@@ -70,6 +70,7 @@ def _make_real_config(tmp_path: Path) -> ReadOnlyConfig:
             "chatbot_project": rf"C:\Users\{username}\Projects\chatbot",
             "desktop": rf"C:\Users\{username}\Desktop",
         }),
+        _websites=MappingProxyType({}),
     )
 
 

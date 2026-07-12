@@ -68,7 +68,9 @@ def make_engine(
         tmp = tempfile.mkdtemp()
         logger = StructuredLogger(log_path=Path(tmp) / "test.log", echo_stdout=False)
     if config is None:
-        config = ReadOnlyConfig(_apps=(), _aliases=MappingProxyType({}))
+        from backend.config.config_loader import ReadOnlyConfig
+        from types import MappingProxyType
+        config = ReadOnlyConfig(_apps=(), _aliases=MappingProxyType({}), _websites=MappingProxyType({}))
 
     return ExecutionEngine(
         registry=registry,

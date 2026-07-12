@@ -31,7 +31,8 @@ from backend.models.action_context import ActionContext, WorkspaceMetadata
 from backend.models.action_plan import ActionPlan, ActionStep
 from backend.models.action_result import ActionResult
 from backend.models.error_codes import ErrorCode
-from backend.planner.stub_planner import ExecuteRequest, ExecuteStepRequest, StubPlanner
+from backend.planner.stub_planner import StubPlanner
+from backend.schemas.api import ExecuteRequest, ExecuteStepRequest
 from backend.registry.action_registry import ActionRegistry
 from backend.safety.safety_policy import SafetyPolicy
 from backend.validator.validator import PlanValidator
@@ -62,7 +63,7 @@ def test_aliases() -> MappingProxyType:
 @pytest.fixture
 def test_config(test_apps, test_aliases) -> ReadOnlyConfig:
     """ReadOnlyConfig pre-populated with test apps and aliases."""
-    return ReadOnlyConfig(_apps=test_apps, _aliases=test_aliases)
+    return ReadOnlyConfig(_apps=test_apps, _aliases=test_aliases, _websites=MappingProxyType({}))
 
 
 # ── Logger fixture ─────────────────────────────────────────────────────────────

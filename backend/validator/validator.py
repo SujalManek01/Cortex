@@ -62,11 +62,6 @@ class PlanValidator:
 
     def _check_schema(self, plan: ActionPlan) -> None:
         """Verify required top-level fields are present and non-empty."""
-        if not plan.goal or not plan.goal.strip():
-            raise ValidationError(
-                "ActionPlan 'goal' must not be empty.",
-                error_code=ErrorCode.INVALID_PLAN,
-            )
         if not plan.steps:
             raise ValidationError(
                 "ActionPlan must contain at least one step.",

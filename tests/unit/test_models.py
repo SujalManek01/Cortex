@@ -13,7 +13,8 @@ from backend.models.action_plan import ActionPlan, ActionStep
 from backend.models.action_result import ActionResult
 from backend.models.error_codes import ErrorCode
 from backend.models.execution_state import ExecutionState, PlanExecutionState
-from backend.planner.stub_planner import ExecuteRequest, ExecuteStepRequest, StubPlanner
+from backend.planner.stub_planner import StubPlanner
+from backend.schemas.api import ExecuteRequest, ExecuteStepRequest, ExecutePlanRequest
 
 
 class TestActionStep:
@@ -141,42 +142,53 @@ class TestStubPlanner:
     def test_generates_plan_id(self):
         planner = StubPlanner()
         req = ExecuteRequest(
-            goal="Test",
-            steps=[ExecuteStepRequest(action="application.open", parameters={"app": "notepad"})],
+            plan=ExecutePlanRequest(
+                steps=[ExecuteStepRequest(capability="application.open", target="notepad")]
+            )
         )
         plan = planner.plan_from_request(req)
         assert isinstance(plan.plan_id, uuid.UUID)
 
     def test_sets_created_by(self):
         planner = StubPlanner()
-        req = ExecuteRequest(goal="Test", steps=[
-            ExecuteStepRequest(action="application.open", parameters={"app": "notepad"}),
-        ])
+        req = ExecuteRequest(
+            plan=ExecutePlanRequest(
+                steps=[ExecuteStepRequest(capability="application.open", target="notepad")]
+            )
+        )
         plan = planner.plan_from_request(req)
         assert plan.created_by == "stub_planner"
 
     def test_generates_unique_plan_ids(self):
         planner = StubPlanner()
-        req = ExecuteRequest(goal="g", steps=[
-            ExecuteStepRequest(action="application.open", parameters={"app": "notepad"}),
-        ])
+        req = ExecuteRequest(
+            plan=ExecutePlanRequest(
+                steps=[ExecuteStepRequest(capability="application.open", target="notepad")]
+            )
+        )
         ids = {planner.plan_from_request(req).plan_id for _ in range(10)}
         assert len(ids) == 10  # All unique
 
     def test_auto_assigns_step_ids(self):
         planner = StubPlanner()
-        req = ExecuteRequest(goal="g", steps=[
-            ExecuteStepRequest(action="application.open", parameters={"app": "vscode"}),
-            ExecuteStepRequest(action="application.open", parameters={"app": "notepad"}),
-        ])
+        req = ExecuteRequest(
+            plan=ExecutePlanRequest(
+                steps=[
+                    ExecuteStepRequest(capability="application.open", target="vscode"),
+                    ExecuteStepRequest(capability="application.open", target="notepad"),
+                ]
+            )
+        )
         plan = planner.plan_from_request(req)
         assert plan.steps[0].id == "step-1"
         assert plan.steps[1].id == "step-2"
 
     def test_sets_version_1_0(self):
         planner = StubPlanner()
-        req = ExecuteRequest(goal="g", steps=[
-            ExecuteStepRequest(action="folder.open", parameters={"alias": "desktop"}),
-        ])
+        req = ExecuteRequest(
+            plan=ExecutePlanRequest(
+                steps=[ExecuteStepRequest(capability="folder.open", target="desktop")]
+            )
+        )
         plan = planner.plan_from_request(req)
         assert plan.version == "1.0"
