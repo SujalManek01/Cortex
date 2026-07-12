@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "cortex-backend"
+version = "0.1.0"
+description = "Cortex AI operating layer — Core Execution Engine"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "acceptance: End-to-end acceptance tests that launch real OS applications (skipped by default).",
+    "unit: Fast unit tests with no OS side-effects.",
+    "integration: Integration tests using the ASGI test client.",
+]
+addopts = "-v --tb=short -m 'not acceptance'"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true

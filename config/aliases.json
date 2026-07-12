@@ -1,0 +1,8 @@
+{
+  "desktop":         "C:\\Users\\{username}\\Desktop",
+  "downloads":       "C:\\Users\\{username}\\Downloads",
+  "documents":       "C:\\Users\\{username}\\Documents",
+  "pictures":        "C:\\Users\\{username}\\Pictures",
+  "music":           "C:\\Users\\{username}\\Music",
+  "chatbot_project": "C:\\Users\\{username}\\Projects\\chatbot"
+}

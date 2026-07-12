@@ -17,8 +17,12 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
+# Logs (keep logs/.gitkeep, ignore log files)
+logs/*.log
+
+# Type checking / linting caches
+.mypy_cache/
+.ruff_cache/
 
 # Testing
 .pytest_cache/

@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "acceptance: End-to-end acceptance tests that launch real OS applications (skipped by default).",
+    "unit: Fast unit tests with no OS side-effects.",
+    "integration: Integration tests using the ASGI test client.",
+]
+addopts = "-v --tb=short -m 'not acceptance'"

@@ -1,0 +1,56 @@
+[
+  {
+    "name": "VS Code",
+    "alias": "vscode",
+    "executable": "Code.exe",
+    "path": ""
+  },
+  {
+    "name": "Google Chrome",
+    "alias": "chrome",
+    "executable": "chrome.exe",
+    "path": ""
+  },
+  {
+    "name": "Microsoft Edge",
+    "alias": "edge",
+    "executable": "msedge.exe",
+    "path": ""
+  },
+  {
+    "name": "Mozilla Firefox",
+    "alias": "firefox",
+    "executable": "firefox.exe",
+    "path": ""
+  },
+  {
+    "name": "Notepad",
+    "alias": "notepad",
+    "executable": "notepad.exe",
+    "path": "C:\\Windows\\System32\\notepad.exe"
+  },
+  {
+    "name": "File Explorer",
+    "alias": "explorer",
+    "executable": "explorer.exe",
+    "path": "C:\\Windows\\explorer.exe"
+  },
+  {
+    "name": "Calculator",
+    "alias": "calculator",
+    "executable": "calc.exe",
+    "path": "C:\\Windows\\System32\\calc.exe"
+  },
+  {
+    "name": "Paint",
+    "alias": "paint",
+    "executable": "mspaint.exe",
+    "path": "C:\\Windows\\System32\\mspaint.exe"
+  },
+  {
+    "name": "Task Manager",
+    "alias": "taskmgr",
+    "executable": "Taskmgr.exe",
+    "path": "C:\\Windows\\System32\\Taskmgr.exe"
+  }
+]
