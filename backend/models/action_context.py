@@ -43,6 +43,6 @@ class ActionContext:
     Refinement 4: All services are injected; no hidden globals.
     """
 
-    logger: "StructuredLogger"
-    config: "ReadOnlyConfig"
+    logger: StructuredLogger
+    config: ReadOnlyConfig
     workspace: WorkspaceMetadata

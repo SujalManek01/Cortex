@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ExecuteRequest, ExecuteStepRequest } from '../types/cortex'
+import type { ExecuteRequest } from '../types/cortex'
 
 interface Props {
   onSubmit: (request: ExecuteRequest) => void
@@ -7,11 +7,12 @@ interface Props {
 }
 
 const PLACEHOLDER = `{
-  "goal": "Open VS Code and Chrome",
-  "steps": [
-    { "action": "application.open", "parameters": { "app": "vscode" } },
-    { "action": "application.open", "parameters": { "app": "chrome" } }
-  ]
+  "plan": {
+    "steps": [
+      { "capability": "application.open", "target": "vscode" },
+      { "capability": "application.open", "target": "chrome" }
+    ]
+  }
 }`
 
 export function PlanInput({ onSubmit, disabled }: Props) {
@@ -35,10 +36,11 @@ export function PlanInput({ onSubmit, disabled }: Props) {
     if (
       typeof parsed !== 'object' ||
       parsed === null ||
-      !('goal' in parsed) ||
-      !('steps' in parsed)
+      !('plan' in parsed) ||
+      typeof (parsed as any).plan !== 'object' ||
+      !('steps' in (parsed as any).plan)
     ) {
-      setError('JSON must have "goal" (string) and "steps" (array) fields.')
+      setError('JSON must have a "plan" object with a "steps" array field.')
       return
     }
     onSubmit(parsed as ExecuteRequest)

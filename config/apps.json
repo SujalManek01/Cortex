@@ -3,13 +3,13 @@
     "name": "VS Code",
     "alias": "vscode",
     "executable": "Code.exe",
-    "path": ""
+    "path": "C:\\Users\\kaush.BUDDY\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
   },
   {
     "name": "Google Chrome",
     "alias": "chrome",
     "executable": "chrome.exe",
-    "path": ""
+    "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
   },
   {
     "name": "Microsoft Edge",

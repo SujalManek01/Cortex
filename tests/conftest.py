@@ -13,10 +13,9 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from pathlib import Path
 from types import MappingProxyType
 from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -31,11 +30,8 @@ from backend.models.action_context import ActionContext, WorkspaceMetadata
 from backend.models.action_plan import ActionPlan, ActionStep
 from backend.models.action_result import ActionResult
 from backend.models.error_codes import ErrorCode
-from backend.planner.stub_planner import StubPlanner
-from backend.schemas.api import ExecuteRequest, ExecuteStepRequest
+from backend.schemas.api import ExecuteRequest, ExecuteStepRequest  # noqa: F401 – exported for test modules
 from backend.registry.action_registry import ActionRegistry
-from backend.safety.safety_policy import SafetyPolicy
-from backend.validator.validator import PlanValidator
 
 
 # ── Config fixtures ────────────────────────────────────────────────────────────

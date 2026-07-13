@@ -16,7 +16,6 @@ import pytest
 
 from backend.engine.execution_engine import ConcurrentExecutionError, ExecutionEngine
 from backend.models.action_plan import ActionPlan, ActionStep
-from backend.models.action_result import ActionResult
 from backend.models.error_codes import ErrorCode
 from backend.models.execution_state import ExecutionState
 from backend.registry.action_registry import ActionRegistry
@@ -57,7 +56,6 @@ def make_engine(
         )
         registry.register(executor)
 
-    from unittest.mock import MagicMock
     from pathlib import Path
     from types import MappingProxyType
     from backend.config.config_loader import ReadOnlyConfig

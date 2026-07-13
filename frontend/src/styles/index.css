@@ -482,6 +482,39 @@ body {
   color: var(--text-muted);
 }
 
+/* ── Registry Panels ────────────────────────────────────────────────────────── */
+.registry-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.registry-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.registry-list li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+}
+
+.registry-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .main-layout {

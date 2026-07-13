@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +40,7 @@ class StructuredLogger:
 
     def _write(self, entry: dict[str, Any]) -> None:
         """Serialize entry to JSON and append it as one line to the log file."""
-        entry["timestamp"] = datetime.now(tz=timezone.utc).isoformat()
+        entry["timestamp"] = datetime.now(tz=UTC).isoformat()
         line = json.dumps(entry, default=str)
         with self._log_path.open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")

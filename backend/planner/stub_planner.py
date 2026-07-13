@@ -15,11 +15,7 @@ from __future__ import annotations
 
 import uuid
 
-from pydantic import BaseModel, Field
-
 from backend.models.action_plan import ActionPlan, ActionStep
-
-
 from backend.schemas.api import ExecuteRequest
 
 # ── StubPlanner ────────────────────────────────────────────────────────────────

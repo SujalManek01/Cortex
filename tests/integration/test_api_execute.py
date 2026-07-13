@@ -15,13 +15,10 @@ without starting a real server.
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
-import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 
-from backend.models.action_result import ActionResult
-from backend.models.error_codes import ErrorCode
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -157,11 +154,7 @@ class TestExecuteSafetyViolations:
 class TestExecuteConcurrentExecution:
     async def test_concurrent_plan_returns_409(self, http_client: AsyncClient):
         """Sending a second request while first is processing must return 409."""
-        import asyncio
-        from unittest.mock import patch, AsyncMock
-        import time
-
-        slow_event = asyncio.Event()
+        from unittest.mock import patch
 
         async def slow_popen(*args, **kwargs):
             await asyncio.sleep(0.3)

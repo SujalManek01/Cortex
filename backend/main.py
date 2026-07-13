@@ -27,9 +27,13 @@ from backend.engine.execution_engine import ExecutionEngine
 from backend.executors.application_close import ApplicationCloseExecutor
 from backend.executors.application_open import ApplicationOpenExecutor
 from backend.executors.folder_open import FolderOpenExecutor
+from backend.executors.website_open import WebsiteOpenExecutor
 from backend.logging.logger import StructuredLogger
 from backend.planner.stub_planner import StubPlanner
 from backend.registry.action_registry import ActionRegistry
+from backend.registry.application_registry import ApplicationRegistry
+from backend.registry.folder_registry import FolderRegistry
+from backend.registry.website_registry import WebsiteRegistry
 from backend.safety.safety_policy import SafetyPolicy
 from backend.validator.validator import PlanValidator
 
@@ -59,13 +63,19 @@ async def lifespan(app: FastAPI):
         discovered_apps=[a.alias for a in config.all_apps if a.path],
     )
 
-    # ── 2. Registry + Executors ────────────────────────────────────────────────
+    # ── 2. Sprint 002 Specialized Registries (created before executors for DI) ────
+    app_registry = ApplicationRegistry(config)
+    folder_registry = FolderRegistry(config)
+    website_registry = WebsiteRegistry(config)
+
+    # ── 3. Action Registry + Executors ───────────────────────────────────────
     # Engineering Rule: Engine never contains action-specific conditionals.
     # Adding a new executor = create class + register here.
     registry = ActionRegistry()
     registry.register(ApplicationOpenExecutor())
     registry.register(ApplicationCloseExecutor())
     registry.register(FolderOpenExecutor())
+    registry.register(WebsiteOpenExecutor(registry=website_registry))
 
     logger.info("Executors registered", actions=registry.registered_actions)
 
@@ -88,6 +98,9 @@ async def lifespan(app: FastAPI):
     app.state.logger = logger
     app.state.config = config
     app.state.registry = registry
+    app.state.app_registry = app_registry
+    app.state.folder_registry = folder_registry
+    app.state.website_registry = website_registry
     app.state.planner = planner
     app.state.validator = validator
     app.state.safety_policy = safety_policy

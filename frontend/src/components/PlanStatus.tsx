@@ -1,10 +1,10 @@
-import type { PlanExecutionState } from '../types/cortex'
+import type { ExecuteResponse } from '../types/cortex'
 
 type Phase = 'idle' | 'running' | 'completed' | 'failed' | 'error'
 
 interface Props {
   phase: Phase
-  state: PlanExecutionState | null
+  state: ExecuteResponse | null
   errorMessage: string | null
 }
 
@@ -16,10 +16,9 @@ const STATUS_CONFIG: Record<Phase, { label: string; emoji: string; className: st
   error:     { label: 'Error',     emoji: '⚠',  className: 'status-error' },
 }
 
-function formatDuration(startedAt: string | null, finishedAt: string | null): string {
-  if (!startedAt || !finishedAt) return ''
-  const ms = new Date(finishedAt).getTime() - new Date(startedAt).getTime()
-  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`
+function formatMs(ms: number): string {
+  if (!ms) return ''
+  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(2)}s`
 }
 
 export function PlanStatus({ phase, state, errorMessage }: Props) {
@@ -34,14 +33,14 @@ export function PlanStatus({ phase, state, errorMessage }: Props) {
         <div className="status-text">
           <span className="status-label">{cfg.label}</span>
           {state && (
-            <span className="status-plan-id" title={state.plan_id}>
-              {state.plan_id.slice(0, 8)}…
+            <span className="status-plan-id" title={state.execution_id}>
+              {state.execution_id.slice(0, 8)}…
             </span>
           )}
         </div>
-        {state && state.started_at && state.finished_at && (
+        {state && (
           <span className="status-duration">
-            {formatDuration(state.started_at, state.finished_at)}
+            {formatMs(state.duration_ms)}
           </span>
         )}
       </div>

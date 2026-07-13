@@ -14,10 +14,18 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from backend.engine.execution_engine import ConcurrentExecutionError, ExecutionEngine
-from backend.models.execution_state import ExecutionState, PlanExecutionState
 from backend.planner.stub_planner import StubPlanner
-from backend.schemas.api import ExecuteRequest, ExecuteResponse, ExecutionResultSchema, ExecutionSummary
+from backend.registry.action_registry import ActionRegistry
+from backend.registry.application_registry import ApplicationRegistry
+from backend.registry.folder_registry import FolderRegistry
+from backend.registry.website_registry import WebsiteRegistry
 from backend.safety.safety_policy import SafetyPolicy, SafetyViolation
+from backend.schemas.api import (
+    ExecuteRequest,
+    ExecuteResponse,
+    ExecutionResultSchema,
+    ExecutionSummary,
+)
 from backend.validator.validator import PlanValidator, ValidationError
 
 router = APIRouter()
@@ -39,6 +47,22 @@ def _safety(request: Request) -> SafetyPolicy:
 
 def _engine(request: Request) -> ExecutionEngine:
     return request.app.state.engine
+
+
+def _app_registry(request: Request) -> ApplicationRegistry:
+    return request.app.state.app_registry
+
+
+def _folder_registry(request: Request) -> FolderRegistry:
+    return request.app.state.folder_registry
+
+
+def _website_registry(request: Request) -> WebsiteRegistry:
+    return request.app.state.website_registry
+
+
+def _action_registry(request: Request) -> ActionRegistry:
+    return request.app.state.registry
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
@@ -173,3 +197,64 @@ async def get_status(request: Request) -> JSONResponse:
 )
 async def health_check() -> JSONResponse:
     return JSONResponse({"status": "ok"})
+
+
+# ── Sprint 002 Metadata Routes ───────────────────────────────────────────────
+
+@router.get(
+    "/applications",
+    summary="List registered applications",
+    description="Returns all applications known to the Capability Registry.",
+)
+async def list_applications(request: Request) -> JSONResponse:
+    """Return all registered application entries."""
+    reg = _app_registry(request)
+    return JSONResponse({
+        "applications": [
+            {"alias": app.alias, "name": app.name, "executable": app.executable or ""}
+            for app in reg.all_apps
+        ]
+    })
+
+
+@router.get(
+    "/folders",
+    summary="List registered folder aliases",
+    description="Returns all folder aliases known to the Capability Registry.",
+)
+async def list_folders(request: Request) -> JSONResponse:
+    """Return all registered folder alias → path mappings."""
+    reg = _folder_registry(request)
+    return JSONResponse({
+        "folders": [
+            {"alias": alias, "path": path}
+            for alias, path in reg.all_aliases.items()
+        ]
+    })
+
+
+@router.get(
+    "/websites",
+    summary="List registered website aliases",
+    description="Returns all website aliases known to the Capability Registry.",
+)
+async def list_websites(request: Request) -> JSONResponse:
+    """Return all registered website alias → URL mappings."""
+    reg = _website_registry(request)
+    return JSONResponse({
+        "websites": [
+            {"alias": alias, "url": url}
+            for alias, url in reg.all_websites.items()
+        ]
+    })
+
+
+@router.get(
+    "/capabilities",
+    summary="List registered capabilities",
+    description="Returns all capability names currently registered with the engine.",
+)
+async def list_capabilities(request: Request) -> JSONResponse:
+    """Return all registered capability (action) names."""
+    reg = _action_registry(request)
+    return JSONResponse({"capabilities": reg.registered_actions})

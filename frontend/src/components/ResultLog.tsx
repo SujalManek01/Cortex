@@ -1,7 +1,7 @@
-import type { ActionResult } from '../types/cortex'
+import type { ExecutionResultSchema } from '../types/cortex'
 
 interface Props {
-  results: ActionResult[]
+  results: ExecutionResultSchema[]
 }
 
 const ERROR_LABELS: Record<string, string> = {
@@ -28,35 +28,40 @@ export function ResultLog({ results }: Props) {
         <span className="card-icon">📋</span>
         <h2 className="card-title">Step Results</h2>
         <span className="result-count">
-          {results.filter(r => r.success).length}/{results.length} passed
+          {results.filter(r => r.status === 'success').length}/{results.length} passed
         </span>
       </div>
 
       <ol className="result-list" aria-label="Step execution results">
-        {results.map((result, idx) => (
-          <li
-            key={result.step_id || idx}
-            className={`result-item ${result.success ? 'result-success' : 'result-failure'}`}
-          >
-            <div className="result-row">
-              <span className="result-status-icon" aria-label={result.success ? 'success' : 'failed'}>
-                {result.success ? '✓' : '✗'}
-              </span>
-              <div className="result-details">
-                <div className="result-top">
-                  <code className="result-step-id">{result.step_id}</code>
-                  {result.error_code && (
-                    <span className="result-error-code" title={result.error_code}>
-                      {ERROR_LABELS[result.error_code] ?? result.error_code}
-                    </span>
+        {results.map((result, idx) => {
+          const isSuccess = result.status === 'success'
+          return (
+            <li
+              key={result.step || idx}
+              className={`result-item ${isSuccess ? 'result-success' : 'result-failure'}`}
+            >
+              <div className="result-row">
+                <span className="result-status-icon" aria-label={isSuccess ? 'success' : 'failed'}>
+                  {isSuccess ? '✓' : '✗'}
+                </span>
+                <div className="result-details">
+                  <div className="result-top">
+                    <code className="result-step-id">Step {result.step}</code>
+                    <span className="result-duration">{formatMs(result.duration)}</span>
+                  </div>
+                  <p className="result-message">
+                    <strong>{result.capability}</strong> {result.target}
+                  </p>
+                  {result.error && (
+                    <div className="result-error-code">
+                      {ERROR_LABELS[result.error.code] ?? result.error.code}: {result.error.message}
+                    </div>
                   )}
-                  <span className="result-duration">{formatMs(result.duration_ms)}</span>
                 </div>
-                <p className="result-message">{result.message}</p>
               </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          )
+        })}
       </ol>
     </div>
   )

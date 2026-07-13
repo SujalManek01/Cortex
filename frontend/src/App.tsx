@@ -1,16 +1,17 @@
 import { useState } from 'react'
-import type { PlanExecutionState } from './types/cortex'
+import type { ExecuteResponse } from './types/cortex'
 import { executePlan } from './api/cortexApi'
 import type { ExecuteRequest } from './types/cortex'
 import { PlanInput } from './components/PlanInput'
 import { PlanStatus } from './components/PlanStatus'
 import { ResultLog } from './components/ResultLog'
+import { RegistryPanels } from './components/RegistryPanels'
 
 type Phase = 'idle' | 'running' | 'completed' | 'failed' | 'error'
 
 export default function App() {
   const [phase, setPhase] = useState<Phase>('idle')
-  const [planState, setPlanState] = useState<PlanExecutionState | null>(null)
+  const [planState, setPlanState] = useState<ExecuteResponse | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   async function handleSubmit(request: ExecuteRequest) {
@@ -47,6 +48,7 @@ export default function App() {
       <main className="main-layout">
         <div className="left-column">
           <PlanInput onSubmit={handleSubmit} disabled={phase === 'running'} />
+          <RegistryPanels />
         </div>
 
         <div className="right-column">
@@ -55,7 +57,7 @@ export default function App() {
             state={planState}
             errorMessage={errorMessage}
           />
-          {planState && <ResultLog results={planState.step_results} />}
+          {planState && <ResultLog results={planState.results} />}
         </div>
       </main>
 

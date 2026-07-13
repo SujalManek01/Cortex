@@ -4,10 +4,10 @@ Every failure produced by the engine, validator, safety policy, or
 executors is identified by one of these codes. Using str as the enum
 base ensures JSON-serializable values without extra conversion.
 """
-from enum import Enum
+from enum import StrEnum
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """All structured error codes produced by the Cortex execution engine.
 
     These codes appear in ActionResult.error_code and HTTP error responses.

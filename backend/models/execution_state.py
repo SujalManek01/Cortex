@@ -8,14 +8,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 from backend.models.action_result import ActionResult
 
 
-class ExecutionState(str, Enum):
+class ExecutionState(StrEnum):
     """Lifecycle states for step and plan execution.
 
     Using str as base ensures JSON-serializable values.

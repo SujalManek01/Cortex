@@ -6,57 +6,86 @@
 // ── Request types (what the frontend sends) ───────────────────────────────────
 
 export interface ExecuteStepRequest {
-  action: string
-  parameters: Record<string, unknown>
+  capability: string
+  target: string
+}
+
+export interface ExecutePlanRequest {
+  steps: ExecuteStepRequest[]
 }
 
 export interface ExecuteRequest {
-  goal: string
-  steps: ExecuteStepRequest[]
+  version?: string
+  plan: ExecutePlanRequest
 }
 
 // ── Response types (what the backend returns) ─────────────────────────────────
 
-export type ErrorCode =
-  | 'unknown_application'
-  | 'invalid_alias'
-  | 'invalid_plan'
-  | 'timeout'
-  | 'launch_failure'
-  | 'validation_error'
-  | 'safety_violation'
-  | 'concurrent_execution'
+export interface ExecutionSummary {
+  successful: number
+  failed: number
+  total: number
+  duration: number
+}
 
-export type ExecutionState = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+export interface ExecutionResultSchema {
+  step: number
+  capability: string
+  target: string
+  status: string
+  duration: number
+  error?: Record<string, any>
+}
 
-export interface ActionResult {
-  step_id: string
-  success: boolean
-  message: string
-  error_code: ErrorCode | null
+export interface ExecuteResponse {
+  execution_id: string
+  status: string
   duration_ms: number
-  metadata: Record<string, unknown>
+  summary: ExecutionSummary
+  results: ExecutionResultSchema[]
 }
 
-export interface PlanExecutionState {
-  plan_id: string
-  status: ExecutionState
-  current_step_id: string | null
-  step_results: ActionResult[]
-  started_at: string | null
-  finished_at: string | null
+export interface ApplicationItem {
+  alias: string
+  name: string
+  executable: string | null
+  path: string | null
 }
 
-// ── API error shape ────────────────────────────────────────────────────────────
+export interface ApplicationsResponse {
+  applications: ApplicationItem[]
+}
 
-export interface ApiError {
-  error: string
-  error_code: ErrorCode
-  message: string
-  plan_id?: string
+export interface FolderItem {
+  alias: string
+  path: string
+}
+
+export interface FoldersResponse {
+  folders: FolderItem[]
+}
+
+export interface WebsiteItem {
+  alias: string
+  url: string
+}
+
+export interface WebsitesResponse {
+  websites: WebsiteItem[]
+}
+
+export interface CapabilitiesResponse {
+  capabilities: string[]
 }
 
 export interface StatusResponse {
   busy: boolean
   status: 'idle' | 'running'
+}
+
+export interface ApiError {
+  error: string
+  error_code: string
+  message: string
+  plan_id?: string
 }

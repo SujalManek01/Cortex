@@ -29,10 +29,8 @@ import asyncio
 import uuid
 from pathlib import Path
 from types import MappingProxyType
-from unittest.mock import patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 
 from backend.config.config_loader import AppEntry, ReadOnlyConfig
 from backend.engine.execution_engine import ConcurrentExecutionError, ExecutionEngine
@@ -41,10 +39,8 @@ from backend.executors.application_open import ApplicationOpenExecutor
 from backend.executors.folder_open import FolderOpenExecutor
 from backend.logging.logger import StructuredLogger
 from backend.models.action_plan import ActionPlan, ActionStep
-from backend.models.action_result import ActionResult
 from backend.models.error_codes import ErrorCode
 from backend.models.execution_state import ExecutionState
-from backend.planner.stub_planner import StubPlanner
 from backend.registry.action_registry import ActionRegistry
 from backend.safety.safety_policy import SafetyPolicy, SafetyViolation
 from backend.validator.validator import PlanValidator, ValidationError

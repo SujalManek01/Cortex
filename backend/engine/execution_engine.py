@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from backend.config.config_loader import ReadOnlyConfig
 from backend.logging.logger import StructuredLogger
@@ -116,7 +116,7 @@ class ExecutionEngine:
         state = PlanExecutionState(
             plan_id=plan.plan_id,
             status=ExecutionState.RUNNING,
-            started_at=datetime.now(tz=timezone.utc),
+            started_at=datetime.now(tz=UTC),
         )
 
         self._logger.plan_start(plan_id_str, plan.goal, len(plan.steps))
@@ -164,7 +164,7 @@ class ExecutionEngine:
             ExecutionState.COMPLETED if plan_succeeded else ExecutionState.FAILED
         )
         state.current_step_id = None
-        state.finished_at = datetime.now(tz=timezone.utc)
+        state.finished_at = datetime.now(tz=UTC)
 
         self._logger.plan_complete(
             plan_id_str,
@@ -208,7 +208,7 @@ class ExecutionEngine:
                 result = result.model_copy(update={"step_id": step.id})
             return result
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             duration_ms = self._step_timeout * 1000
             self._logger.warning(
                 "Step timeout",
