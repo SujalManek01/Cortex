@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "entries": [
+    {
+      "alias": "desktop",
+      "path": "%USERPROFILE%\\Desktop"
+    },
+    {
+      "alias": "downloads",
+      "path": "%USERPROFILE%\\Downloads"
+    },
+    {
+      "alias": "documents",
+      "path": "%USERPROFILE%\\Documents"
+    },
+    {
+      "alias": "pictures",
+      "path": "%USERPROFILE%\\Pictures"
+    },
+    {
+      "alias": "music",
+      "path": "%USERPROFILE%\\Music"
+    },
+    {
+      "alias": "chatbot_project",
+      "path": "%USERPROFILE%\\Projects\\chatbot"
+    }
+  ]
+}

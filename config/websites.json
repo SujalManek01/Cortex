@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "entries": [
+    {
+      "alias": "google",
+      "url": "https://www.google.com"
+    },
+    {
+      "alias": "github",
+      "url": "https://github.com"
+    },
+    {
+      "alias": "stackoverflow",
+      "url": "https://stackoverflow.com"
+    },
+    {
+      "alias": "chatgpt",
+      "url": "https://chatgpt.com"
+    }
+  ]
+}

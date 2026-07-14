@@ -123,7 +123,7 @@ class ConfigLoader:
                 continue
 
             raw_path = str(entry.get("path", "")).strip()
-            resolved_path = raw_path.replace("{username}", _USERNAME) if raw_path else ""
+            resolved_path = os.path.expandvars(raw_path.replace("{username}", _USERNAME)) if raw_path else ""
 
             if resolved_path:
                 # Explicit path in apps.json always wins over discovery.
@@ -158,14 +158,14 @@ class ConfigLoader:
         # Sprint 002 format
         if isinstance(raw_data, dict) and "version" in raw_data:
             return {
-                str(entry.get("alias", "")).strip(): str(entry.get("path", "")).replace("{username}", _USERNAME)
+                str(entry.get("alias", "")).strip(): os.path.expandvars(str(entry.get("path", "")).replace("{username}", _USERNAME))
                 for entry in raw_data.get("entries", [])
                 if entry.get("alias") and entry.get("path")
             }
         
         # Sprint 001 format (dict mapping)
         return {
-            alias: path.replace("{username}", _USERNAME)
+            alias: os.path.expandvars(path.replace("{username}", _USERNAME))
             for alias, path in raw_data.items()
             if alias and path
         }
