@@ -1,20 +1,52 @@
 # Changelog
 
-All notable changes to Cortex will be documented here.
+## v0.3.0
+
+### Added
+- Natural Language Planning
+- RulePlanner
+- Tokenizer
+- Normalizer
+- Intent Detector
+- Target Resolver
+- Planner Preview
+- POST /plan
+- POST /command
+
+### Improved
+- Frontend planning workflow
+- Test coverage (265 tests)
+
+### Compatibility
+- Existing POST /execute unchanged.
 
 ---
 
-## SPR-001 — Core Execution Engine
+## v0.2.1
 
-Status: 🚧 In Progress
+### Fixed
+- Added missing folders.json
+- Added missing websites.json
+- Environment variable expansion
+- Configuration packaging
 
-### Planned
+---
 
-- Planner
+## v0.2.0
+
+### Added
+- Desktop Automation
+- Application Registry
+- Folder Registry
+- Website Registry
+- Execution Engine improvements
+
+---
+
+## v0.1.0
+
+### Initial Release
+- Core Execution Engine
 - Validator
 - Safety Policy
-- Execution Engine
 - Action Registry
-- Application Registry
-- Executors
-- Structured Logging
