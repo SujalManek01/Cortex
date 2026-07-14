@@ -3,8 +3,10 @@
  * All calls go to the Vite dev proxy → FastAPI backend.
  */
 import type {
+  CommandRequest,
   ExecuteRequest,
   ExecuteResponse,
+  PlanResponse,
   StatusResponse,
   ApplicationsResponse,
   FoldersResponse,
@@ -37,6 +39,21 @@ export async function executePlan(request: ExecuteRequest): Promise<ExecuteRespo
     body: JSON.stringify(request),
   })
   return handleResponse<ExecuteResponse>(res)
+}
+
+/**
+ * POST /plan — generate an ActionPlan from a natural language command.
+ * Does NOT execute the plan.
+ * Sprint 003: Primary planning endpoint.
+ */
+export async function generatePlan(command: string): Promise<PlanResponse> {
+  const body: CommandRequest = { command }
+  const res = await fetch(`${BASE}/plan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return handleResponse<PlanResponse>(res)
 }
 
 /** GET /status — check if the engine is busy. */

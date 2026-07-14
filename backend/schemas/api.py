@@ -1,6 +1,7 @@
 """API Schemas — definitions for HTTP request and response bodies.
 
 Matches the Sprint 002 specification for /execute.
+Sprint 003 additions: CommandRequest, PlanResponse, PlanningErrorResponse.
 """
 from __future__ import annotations
 
@@ -21,6 +22,42 @@ class ExecutePlanRequest(BaseModel):
 class ExecuteRequest(BaseModel):
     version: str = Field(default="1.0")
     plan: ExecutePlanRequest
+
+# ── Sprint 003: Natural Language request ───────────────────────────────────────
+
+class CommandRequest(BaseModel):
+    """Request body for POST /plan and POST /command endpoints."""
+    command: str = Field(
+        min_length=1,
+        max_length=500,
+        description="Natural language command. Example: 'Open Chrome and GitHub'.",
+    )
+
+# ── Sprint 003: Planning response schemas ──────────────────────────────────────
+
+class PlanStepSchema(BaseModel):
+    """A single planned step — serializable form sent to the frontend."""
+    id: str
+    capability: str
+    target: str
+
+class PlanningErrorResponse(BaseModel):
+    """Structured error returned by /plan when planning fails."""
+    error_code: str
+    message: str
+
+class PlanResponse(BaseModel):
+    """Response body for POST /plan."""
+    success: bool
+    planner: str
+    confidence: float
+    normalized_input: str
+    warnings: list[str] = Field(default_factory=list)
+    planning_time_ms: float
+    token_count: int
+    step_count: int
+    steps: list[PlanStepSchema] = Field(default_factory=list)
+    error: PlanningErrorResponse | None = None
 
 # ── Responses ──────────────────────────────────────────────────────────────────
 

@@ -14,6 +14,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from backend.engine.execution_engine import ConcurrentExecutionError, ExecutionEngine
+from backend.planner.planning_errors import PlanningError
+from backend.planner.rule_planner import RulePlanner
 from backend.planner.stub_planner import StubPlanner
 from backend.registry.action_registry import ActionRegistry
 from backend.registry.application_registry import ApplicationRegistry
@@ -21,10 +23,14 @@ from backend.registry.folder_registry import FolderRegistry
 from backend.registry.website_registry import WebsiteRegistry
 from backend.safety.safety_policy import SafetyPolicy, SafetyViolation
 from backend.schemas.api import (
+    CommandRequest,
     ExecuteRequest,
     ExecuteResponse,
     ExecutionResultSchema,
     ExecutionSummary,
+    PlanningErrorResponse,
+    PlanResponse,
+    PlanStepSchema,
 )
 from backend.validator.validator import PlanValidator, ValidationError
 
@@ -35,6 +41,10 @@ router = APIRouter()
 
 def _planner(request: Request) -> StubPlanner:
     return request.app.state.planner
+
+
+def _rule_planner(request: Request) -> RulePlanner:
+    return request.app.state.rule_planner
 
 
 def _validator(request: Request) -> PlanValidator:
@@ -197,6 +207,191 @@ async def get_status(request: Request) -> JSONResponse:
 )
 async def health_check() -> JSONResponse:
     return JSONResponse({"status": "ok"})
+
+
+# ── Sprint 003: Natural Language Planning Routes ─────────────────────────────────
+
+@router.post(
+    "/plan",
+    response_model=PlanResponse,
+    summary="Generate an ActionPlan from a natural language command",
+    description=(
+        "Runs the deterministic planning pipeline "
+        "(Tokenizer → Normalizer → IntentDetector → TargetResolver → ActionPlan). "
+        "Does NOT execute the plan. Returns the generated plan for user review."
+    ),
+    responses={
+        200: {"description": "Plan generated (success or planning failure both return 200)."},
+        422: {"description": "Invalid request body."},
+    },
+)
+async def generate_plan(request: Request, body: CommandRequest) -> PlanResponse:
+    """Generate an ActionPlan from a natural language command without executing it."""
+    rule_planner = _rule_planner(request)
+    result = await rule_planner.plan(body.command)
+
+    if not result.success:
+        return PlanResponse(
+            success=False,
+            planner=result.planner_name,
+            confidence=result.confidence,
+            normalized_input=result.normalized_input,
+            warnings=result.warnings,
+            planning_time_ms=result.planning_time_ms,
+            token_count=result.token_count,
+            step_count=result.step_count,
+            steps=[],
+            error=PlanningErrorResponse(
+                error_code=result.error_code or "UNKNOWN_ERROR",
+                message=result.error_message or "Planning failed.",
+            ),
+        )
+
+    # Serialize steps for the frontend.
+    # The frontend uses capability+target to reconstruct ExecuteRequest.
+    plan_steps = [
+        PlanStepSchema(
+            id=step.id,
+            capability=step.action,
+            target=(
+                step.parameters.get("app")
+                or step.parameters.get("alias")
+                or ""
+            ),
+        )
+        for step in (result.plan.steps if result.plan else [])
+    ]
+
+    return PlanResponse(
+        success=True,
+        planner=result.planner_name,
+        confidence=result.confidence,
+        normalized_input=result.normalized_input,
+        warnings=result.warnings,
+        planning_time_ms=result.planning_time_ms,
+        token_count=result.token_count,
+        step_count=result.step_count,
+        steps=plan_steps,
+        error=None,
+    )
+
+
+@router.post(
+    "/command",
+    response_model=ExecuteResponse,
+    summary="Plan and execute a natural language command in one request",
+    description=(
+        "Convenience endpoint for API consumers. "
+        "Runs the full pipeline: planning → validation → safety → execution. "
+        "The Cortex UI uses POST /plan followed by POST /execute instead."
+    ),
+    responses={
+        200: {"description": "Execution completed."},
+        400: {"description": "Planning failed."},
+        403: {"description": "Safety violation."},
+        422: {"description": "Invalid request body."},
+        500: {"description": "Unexpected internal error."},
+    },
+)
+async def execute_command(request: Request, body: CommandRequest) -> ExecuteResponse:
+    """Plan then execute a natural language command."""
+    rule_planner = _rule_planner(request)
+    validator = _validator(request)
+    safety = _safety(request)
+    engine = _engine(request)
+
+    # Step 1: Plan
+    result = await rule_planner.plan(body.command)
+    if not result.success or result.plan is None:
+        raise HTTPException(status_code=400, detail={
+            "error": "planning_failed",
+            "error_code": result.error_code or "UNKNOWN_ERROR",
+            "message": result.error_message or "Planning failed.",
+            "normalized_input": result.normalized_input,
+        })
+
+    plan = result.plan
+
+    # Step 2: Validate
+    try:
+        validator.validate(plan)
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail={
+            "error": "validation_failed",
+            "error_code": exc.error_code.value,
+            "message": str(exc),
+        }) from exc
+
+    # Step 3: Safety
+    try:
+        safety.enforce(plan)
+    except SafetyViolation as exc:
+        raise HTTPException(status_code=403, detail={
+            "error": "safety_violation",
+            "error_code": exc.error_code.value,
+            "message": str(exc),
+        }) from exc
+
+    # Step 4: Execute
+    try:
+        state = await engine.execute(plan)
+    except ConcurrentExecutionError as exc:
+        raise HTTPException(status_code=409, detail={
+            "error": "concurrent_execution",
+            "error_code": exc.error_code.value,
+            "message": str(exc),
+        }) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail={
+            "error": "internal_error",
+            "message": f"Unexpected engine error: {exc}",
+        }) from exc
+
+    # Step 5: Map to ExecuteResponse
+    successful = sum(1 for r in state.step_results if r.success)
+    failed = sum(1 for r in state.step_results if not r.success)
+    duration = 0
+    if state.started_at and state.finished_at:
+        duration = int((state.finished_at - state.started_at).total_seconds() * 1000)
+
+    results = []
+    for i, res in enumerate(state.step_results):
+        step_def = next((s for s in plan.steps if s.id == res.step_id), None)
+        capability = step_def.action if step_def else ""
+        target = ""
+        if step_def:
+            target = (
+                step_def.parameters.get("app")
+                or step_def.parameters.get("alias")
+                or ""
+            )
+        error_dict = None
+        if not res.success:
+            error_dict = {
+                "code": res.error_code.value if res.error_code else "INTERNAL_ERROR",
+                "message": res.message,
+            }
+        results.append(ExecutionResultSchema(
+            step=i + 1,
+            capability=capability,
+            target=str(target),
+            status="success" if res.success else "failed",
+            duration=int(res.duration_ms),
+            error=error_dict,
+        ))
+
+    return ExecuteResponse(
+        execution_id=state.plan_id,
+        status=state.status.value,
+        duration=duration,
+        summary=ExecutionSummary(
+            successful=successful,
+            failed=failed,
+            total=len(state.step_results),
+            duration=duration,
+        ),
+        results=results,
+    )
 
 
 # ── Sprint 002 Metadata Routes ───────────────────────────────────────────────

@@ -19,6 +19,11 @@ export interface ExecuteRequest {
   plan: ExecutePlanRequest
 }
 
+/** Sprint 003: Natural language command request. */
+export interface CommandRequest {
+  command: string
+}
+
 // ── Response types (what the backend returns) ─────────────────────────────────
 
 export interface ExecutionSummary {
@@ -44,6 +49,34 @@ export interface ExecuteResponse {
   summary: ExecutionSummary
   results: ExecutionResultSchema[]
 }
+
+// ── Sprint 003: Planning response types ───────────────────────────────────────
+
+export interface PlanStepSchema {
+  id: string
+  capability: string
+  target: string
+}
+
+export interface PlanningErrorResponse {
+  error_code: string
+  message: string
+}
+
+export interface PlanResponse {
+  success: boolean
+  planner: string
+  confidence: number
+  normalized_input: string
+  warnings: string[]
+  planning_time_ms: number
+  token_count: number
+  step_count: number
+  steps: PlanStepSchema[]
+  error: PlanningErrorResponse | null
+}
+
+// ── Registry response types ───────────────────────────────────────────────────
 
 export interface ApplicationItem {
   alias: string

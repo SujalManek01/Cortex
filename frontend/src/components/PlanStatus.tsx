@@ -1,6 +1,6 @@
 import type { ExecuteResponse } from '../types/cortex'
 
-type Phase = 'idle' | 'running' | 'completed' | 'failed' | 'error'
+type Phase = 'idle' | 'planning' | 'review' | 'running' | 'completed' | 'failed' | 'error'
 
 interface Props {
   phase: Phase
@@ -9,11 +9,13 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<Phase, { label: string; emoji: string; className: string }> = {
-  idle:      { label: 'Idle',      emoji: '○',  className: 'status-idle' },
-  running:   { label: 'Running',   emoji: '◉',  className: 'status-running' },
-  completed: { label: 'Completed', emoji: '✓',  className: 'status-completed' },
-  failed:    { label: 'Failed',    emoji: '✗',  className: 'status-failed' },
-  error:     { label: 'Error',     emoji: '⚠',  className: 'status-error' },
+  idle:      { label: 'Idle',         emoji: '○',  className: 'status-idle' },
+  planning:  { label: 'Planning',     emoji: '⚡', className: 'status-running' },
+  review:    { label: 'Review Plan',  emoji: '📋', className: 'status-idle' },
+  running:   { label: 'Running',      emoji: '◉',  className: 'status-running' },
+  completed: { label: 'Completed',    emoji: '✓',  className: 'status-completed' },
+  failed:    { label: 'Failed',       emoji: '✗',  className: 'status-failed' },
+  error:     { label: 'Error',        emoji: '⚠',  className: 'status-error' },
 }
 
 function formatMs(ms: number): string {

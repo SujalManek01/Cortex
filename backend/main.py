@@ -29,6 +29,7 @@ from backend.executors.application_open import ApplicationOpenExecutor
 from backend.executors.folder_open import FolderOpenExecutor
 from backend.executors.website_open import WebsiteOpenExecutor
 from backend.logging.logger import StructuredLogger
+from backend.planner.rule_planner import RulePlanner
 from backend.planner.stub_planner import StubPlanner
 from backend.registry.action_registry import ActionRegistry
 from backend.registry.application_registry import ApplicationRegistry
@@ -83,8 +84,17 @@ async def lifespan(app: FastAPI):
     validator = PlanValidator(registry=registry)
     safety_policy = SafetyPolicy(config=config)
 
-    # ── 4. Planner ────────────────────────────────────────────────────────────
+    # ── 4. Planners ───────────────────────────────────────────────────────────
+    # StubPlanner: legacy JSON pass-through for /execute direct path.
     planner = StubPlanner()
+    # RulePlanner: Sprint 003 deterministic natural language planner.
+    rule_planner = RulePlanner(
+        app_registry=app_registry,
+        folder_registry=folder_registry,
+        website_registry=website_registry,
+        config_dir=_CONFIG_DIR,
+        logger=logger,
+    )
 
     # ── 5. Engine ─────────────────────────────────────────────────────────────
     engine = ExecutionEngine(
@@ -102,6 +112,7 @@ async def lifespan(app: FastAPI):
     app.state.folder_registry = folder_registry
     app.state.website_registry = website_registry
     app.state.planner = planner
+    app.state.rule_planner = rule_planner
     app.state.validator = validator
     app.state.safety_policy = safety_policy
     app.state.engine = engine

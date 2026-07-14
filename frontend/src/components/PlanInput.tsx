@@ -2,11 +2,12 @@ import { useState } from 'react'
 import type { ExecuteRequest } from '../types/cortex'
 
 interface Props {
-  onSubmit: (request: ExecuteRequest) => void
+  onPlanCommand: (command: string) => void
+  onExecuteDirect: (request: ExecuteRequest) => void
   disabled: boolean
 }
 
-const PLACEHOLDER = `{
+const JSON_PLACEHOLDER = `{
   "plan": {
     "steps": [
       { "capability": "application.open", "target": "vscode" },
@@ -15,17 +16,27 @@ const PLACEHOLDER = `{
   }
 }`
 
-export function PlanInput({ onSubmit, disabled }: Props) {
-  const [json, setJson] = useState('')
+const NL_PLACEHOLDER = "E.g. Open Chrome and GitHub"
+
+export function PlanInput({ onPlanCommand, onExecuteDirect, disabled }: Props) {
+  const [mode, setMode] = useState<'nl' | 'json'>('nl')
+  const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   function handleSubmit() {
     setError(null)
-    const raw = json.trim()
+    const raw = text.trim()
     if (!raw) {
-      setError('Plan JSON cannot be empty.')
+      setError(mode === 'nl' ? 'Command cannot be empty.' : 'Plan JSON cannot be empty.')
       return
     }
+
+    if (mode === 'nl') {
+      onPlanCommand(raw)
+      return
+    }
+
+    // JSON Mode
     let parsed: unknown
     try {
       parsed = JSON.parse(raw)
@@ -43,7 +54,7 @@ export function PlanInput({ onSubmit, disabled }: Props) {
       setError('JSON must have a "plan" object with a "steps" array field.')
       return
     }
-    onSubmit(parsed as ExecuteRequest)
+    onExecuteDirect(parsed as ExecuteRequest)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -55,23 +66,38 @@ export function PlanInput({ onSubmit, disabled }: Props) {
   return (
     <div className="card plan-input-card">
       <div className="card-header">
-        <span className="card-icon">⚡</span>
-        <h2 className="card-title">Action Plan</h2>
-        <span className="hint">Ctrl+Enter to submit</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="card-icon">⚡</span>
+          <h2 className="card-title">Command Input</h2>
+        </div>
+        <div className="mode-toggle">
+          <button
+            className={`toggle-btn ${mode === 'nl' ? 'active' : ''}`}
+            onClick={() => { setMode('nl'); setError(null); }}
+          >
+            Natural Language
+          </button>
+          <button
+            className={`toggle-btn ${mode === 'json' ? 'active' : ''}`}
+            onClick={() => { setMode('json'); setError(null); }}
+          >
+            JSON
+          </button>
+        </div>
       </div>
 
       <div className="textarea-wrapper">
         <textarea
-          id="plan-json-input"
+          id="plan-input"
           className={`plan-textarea${error ? ' textarea-error' : ''}`}
-          value={json}
-          onChange={e => setJson(e.target.value)}
+          value={text}
+          onChange={e => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={PLACEHOLDER}
+          placeholder={mode === 'nl' ? NL_PLACEHOLDER : JSON_PLACEHOLDER}
           disabled={disabled}
           spellCheck={false}
-          rows={14}
-          aria-label="ActionPlan JSON"
+          rows={mode === 'nl' ? 4 : 14}
+          aria-label="Command Input"
           aria-describedby={error ? 'input-error' : undefined}
         />
         {error && (
@@ -82,6 +108,7 @@ export function PlanInput({ onSubmit, disabled }: Props) {
       </div>
 
       <div className="card-footer">
+        <span className="hint">Ctrl+Enter to submit</span>
         <button
           id="submit-plan-btn"
           className="btn btn-primary"
@@ -92,10 +119,10 @@ export function PlanInput({ onSubmit, disabled }: Props) {
           {disabled ? (
             <>
               <span className="spinner" aria-hidden="true" />
-              Executing…
+              Processing…
             </>
           ) : (
-            <>Execute Plan</>
+            <>{mode === 'nl' ? 'Generate Plan' : 'Execute Plan'}</>
           )}
         </button>
       </div>

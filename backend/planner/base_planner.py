@@ -2,7 +2,8 @@
 
 Engineering Rule 1: AI plans. Executors execute.
 
-Sprint 1: StubPlanner (pass-through from frontend-supplied steps).
+Sprint 001: StubPlanner (pass-through from frontend-supplied steps).
+Sprint 003: RulePlanner (deterministic natural language → ActionPlan).
 Future sprints: LLM-backed planners (GPT, Gemini, Claude) will subclass this.
 
 From the spec (Future Compatibility):
@@ -11,32 +12,42 @@ From the spec (Future Compatibility):
 
 The engine always receives a completed ActionPlan — it never knows or cares
 how the plan was generated.
+
+Sprint 003 change: return type updated from ActionPlan to PlannerResult.
+This is the universal contract. Every planner returns structured metadata
+alongside the ActionPlan so that callers can inspect confidence, warnings,
+and error information regardless of the planner implementation.
 """
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from backend.models.action_plan import ActionPlan
+from backend.models.planner_result import PlannerResult
 
 
 class BasePlanner(ABC):
     """Abstract base class for all Cortex planners.
 
-    Future LLM-backed planners accept only a natural language goal and
-    autonomously produce an ActionPlan (selecting actions, parameters, etc.).
+    Every planner accepts a natural language command string and returns
+    a PlannerResult containing the generated ActionPlan plus metadata.
+
+    Future LLM-backed planners are drop-in replacements — the execution
+    pipeline never changes when a new planner is introduced.
     """
 
     @abstractmethod
-    async def plan(self, goal: str) -> ActionPlan:
-        """Convert a natural language goal into an immutable ActionPlan.
+    async def plan(self, command: str) -> PlannerResult:
+        """Convert a natural language command into a PlannerResult.
 
         Args:
-            goal: Human-readable description of what the user wants to accomplish.
-                  Example: "Open VS Code and Chrome, then open the chatbot project folder."
+            command: Plain-text command from the user.
+                     Example: "Open Chrome and GitHub"
 
         Returns:
-            A fully-formed, immutable ActionPlan ready for validation and execution.
+            PlannerResult with success=True and a populated ActionPlan,
+            or success=False with error_code and error_message set.
 
         Raises:
-            PlanningError: If the goal cannot be converted into a valid plan.
+            PlanningError: Implementations may raise instead of returning
+                           a failure PlannerResult. Callers must handle both.
         """

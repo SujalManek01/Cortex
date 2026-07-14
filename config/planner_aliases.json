@@ -1,0 +1,42 @@
+{
+  "version": "1.0",
+  "verbs": {
+    "launch": "open",
+    "run":    "open",
+    "start":  "open",
+    "quit":   "close",
+    "exit":   "close"
+  },
+  "applications": {
+    "vs code":             "vscode",
+    "visual studio code":  "vscode",
+    "vs-code":             "vscode",
+    "google chrome":       "chrome",
+    "chrome browser":      "chrome",
+    "mozilla firefox":     "firefox",
+    "microsoft edge":      "edge",
+    "ms edge":             "edge",
+    "task manager":        "taskmgr",
+    "file explorer":       "explorer",
+    "windows explorer":    "explorer"
+  },
+  "folders": {
+    "my downloads":        "downloads",
+    "downloads folder":    "downloads",
+    "my desktop":          "desktop",
+    "the desktop":         "desktop",
+    "my documents":        "documents",
+    "documents folder":    "documents",
+    "my pictures":         "pictures",
+    "pictures folder":     "pictures",
+    "my music":            "music",
+    "music folder":        "music"
+  },
+  "websites": {
+    "chat gpt":            "chatgpt",
+    "open ai":             "chatgpt",
+    "git hub":             "github",
+    "stack overflow":      "stackoverflow",
+    "stack-overflow":      "stackoverflow"
+  }
+}
