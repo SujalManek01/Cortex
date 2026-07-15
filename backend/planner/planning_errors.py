@@ -24,6 +24,10 @@ class PlannerErrorCode(StrEnum):
     TOKENIZATION_ERROR = "TOKENIZATION_ERROR"   # Invalid lexical input
     NORMALIZATION_ERROR = "NORMALIZATION_ERROR" # Failed normalization
     COMMAND_TOO_LONG   = "COMMAND_TOO_LONG"     # Input exceeds 500-character limit
+    AMBIGUOUS_REFERENCE = "AMBIGUOUS_REFERENCE" # e.g. "then it"
+    EMPTY_GROUP        = "EMPTY_GROUP"         # Verb without targets
+    INVALID_SEQUENCE   = "INVALID_SEQUENCE"     # e.g. target after sequence connector without verb
+    UNKNOWN_CONNECTOR  = "UNKNOWN_CONNECTOR"    # Unrecognized connector
 
 
 class PlanningError(Exception):

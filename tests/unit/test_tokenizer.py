@@ -41,9 +41,9 @@ class TestConnectorTokenization:
         assert connector.type == TokenType.CONNECTOR
         assert connector.value == "and"
 
-    def test_then_is_connector(self, tokenizer):
+    def test_then_is_sequence(self, tokenizer):
         tokens = tokenizer.tokenize("open chrome then github")
-        assert tokens[2].type == TokenType.CONNECTOR
+        assert tokens[2].type == TokenType.SEQUENCE
         assert tokens[2].value == "then"
 
     def test_ampersand_is_connector(self, tokenizer):
@@ -148,15 +148,34 @@ class TestShellMetacharacters:
 
 
 class TestUnknownTokens:
-    def test_at_symbol_rejected(self, tokenizer):
-        with pytest.raises(PlanningError) as exc:
-            tokenizer.tokenize("open @chrome")
-        assert exc.value.error_code == PlannerErrorCode.TOKENIZATION_ERROR
+    def test_at_symbol_preserved_as_unknown(self, tokenizer):
+        tokens = tokenizer.tokenize("open @chrome")
+        # tokens: [WORD("open"), UNKNOWN("@chrome")]
+        assert tokens[1].type == TokenType.UNKNOWN
+        assert tokens[1].value == "@chrome"
 
-    def test_hash_rejected(self, tokenizer):
-        with pytest.raises(PlanningError) as exc:
-            tokenizer.tokenize("open #chrome")
-        assert exc.value.error_code == PlannerErrorCode.TOKENIZATION_ERROR
+    def test_hash_preserved_as_unknown(self, tokenizer):
+        tokens = tokenizer.tokenize("open #chrome")
+        assert tokens[1].type == TokenType.UNKNOWN
+        assert tokens[1].value == "#chrome"
+
+
+class TestCustomGrammarConfig:
+    def test_custom_grammar_config_is_respected(self):
+        from backend.config.config_loader import GrammarConfig
+        config = GrammarConfig(
+            version="1.0",
+            connectors=("plus", "with"),
+            sequences=("next", "followed-by")
+        )
+        custom_tokenizer = Tokenizer(grammar_config=config)
+        tokens = custom_tokenizer.tokenize("open chrome plus github next close vscode")
+        # Expected:
+        # [WORD("open"), WORD("chrome"), CONNECTOR("plus"), WORD("github"), SEQUENCE("next"), WORD("close"), WORD("vscode")]
+        assert tokens[2].type == TokenType.CONNECTOR
+        assert tokens[2].value == "plus"
+        assert tokens[4].type == TokenType.SEQUENCE
+        assert tokens[4].value == "next"
 
 
 class TestTokenDataclass:
@@ -169,3 +188,4 @@ class TestTokenDataclass:
         t = Token(type=TokenType.WORD, value="chrome")
         with pytest.raises((AttributeError, TypeError)):
             t.value = "vscode"  # type: ignore[misc]
+

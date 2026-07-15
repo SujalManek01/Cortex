@@ -35,6 +35,9 @@ class CommandRequest(BaseModel):
 
 # ── Sprint 003: Planning response schemas ──────────────────────────────────────
 
+from backend.models.planner_result import PlannerWarning, PlannerInfo, PlannerDiagnostics
+
+
 class PlanStepSchema(BaseModel):
     """A single planned step — serializable form sent to the frontend."""
     id: str
@@ -52,7 +55,9 @@ class PlanResponse(BaseModel):
     planner: str
     confidence: float
     normalized_input: str
-    warnings: list[str] = Field(default_factory=list)
+    warnings: list[PlannerWarning] = Field(default_factory=list)
+    information: list[PlannerInfo] = Field(default_factory=list)
+    diagnostics: PlannerDiagnostics | None = None
     planning_time_ms: float
     token_count: int
     step_count: int

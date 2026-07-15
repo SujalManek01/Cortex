@@ -1,0 +1,6 @@
+{
+  "version": "1.0",
+  "duplicate_action": "warning",
+  "contradictory_action": "warning",
+  "redundant_action": "information"
+}

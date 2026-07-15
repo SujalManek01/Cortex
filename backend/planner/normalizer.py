@@ -35,6 +35,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from backend.config.config_loader import PlannerAliasesConfig
 from backend.planner.planning_errors import PlannerErrorCode, PlanningError
 from backend.planner.tokenizer import Token, TokenType
 
@@ -43,21 +44,29 @@ class Normalizer:
     """Normalises a token stream using alias mappings from planner_aliases.json.
 
     Args:
-        config_dir: Path to the directory containing planner_aliases.json.
+        planner_aliases: Pre-loaded PlannerAliasesConfig.
+        config_dir: Fallback path to the directory containing planner_aliases.json.
     """
 
-    #: Canonical connector token after normalisation.
-    CANONICAL_CONNECTOR: str = "then"
-
-    def __init__(self, config_dir: Path) -> None:
-        self._aliases = self._load_aliases(config_dir)
+    def __init__(
+        self,
+        planner_aliases: PlannerAliasesConfig | None = None,
+        config_dir: Path | None = None,
+    ) -> None:
+        if planner_aliases is not None:
+            self._aliases = self._merge_aliases(planner_aliases)
+        elif config_dir is not None:
+            self._aliases = self._load_aliases(config_dir)
+        else:
+            self._aliases = {}
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
     def normalize(self, tokens: list[Token]) -> list[str]:
         """Normalise a token stream into a list of canonical string values.
 
-        - CONNECTOR tokens → canonical "then"
+        - CONNECTOR tokens → canonical "and"
+        - SEQUENCE tokens → canonical "then"
         - WORD token sequences → expanded through alias table (longest match)
 
         Args:
@@ -65,7 +74,7 @@ class Normalizer:
 
         Returns:
             Ordered list of normalised string values.
-            Example: ["open", "chrome", "then", "github"]
+            Example: ["open", "chrome", "and", "github"]
 
         Raises:
             PlanningError(NORMALIZATION_ERROR): On any normalisation failure.
@@ -88,6 +97,15 @@ class Normalizer:
 
     # ── Private helpers ────────────────────────────────────────────────────────
 
+    def _merge_aliases(self, raw: PlannerAliasesConfig) -> dict[str, str]:
+        """Merge all categories in PlannerAliasesConfig into a single dict."""
+        merged: dict[str, str] = {}
+        merged.update(raw.verbs)
+        merged.update(raw.applications)
+        merged.update(raw.folders)
+        merged.update(raw.websites)
+        return merged
+
     def _expand_aliases(self, tokens: list[Token]) -> list[str]:
         """Walk the token list, expanding multi-word aliases using greedy matching."""
         result: list[str] = []
@@ -98,7 +116,17 @@ class Normalizer:
             tok = tokens[i]
 
             if tok.type == TokenType.CONNECTOR:
-                result.append(self.CANONICAL_CONNECTOR)
+                result.append("and")
+                i += 1
+                continue
+
+            if tok.type == TokenType.SEQUENCE:
+                result.append("then")
+                i += 1
+                continue
+
+            if tok.type == TokenType.UNKNOWN:
+                result.append(tok.value)
                 i += 1
                 continue
 
@@ -113,6 +141,7 @@ class Normalizer:
                 i += 1
 
         return result
+
 
     def _match_alias(
         self, word_values: list[str], start: int

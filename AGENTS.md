@@ -1,5 +1,20 @@
 # AGENTS.md
 
+# Cortex Development Rules
+
+- Always read the current Sprint specification before making changes.
+- Always read implementation_plan.md before implementation.
+- Make routine engineering decisions independently.
+- Only ask for approval when a decision would fundamentally change Cortex's architecture.
+- Implement milestone-by-milestone.
+- Write tests alongside implementation, never afterward.
+- Run regression tests after every milestone.
+- Maintain backward compatibility unless the Sprint explicitly permits breaking changes.
+- Keep the architecture deterministic.
+- Never bypass Validator, Safety Policy, or the Execution Engine.
+- Update walkthrough.md, release_summary.md, and task.md before declaring a sprint complete.
+
+
 ## Cortex Engineering Rules
 
 This repository is developed sprint-by-sprint using engineering specifications located in:

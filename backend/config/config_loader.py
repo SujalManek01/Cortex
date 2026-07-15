@@ -27,6 +27,33 @@ class AppEntry:
     path: str  # Absolute path to the executable. May be empty if not found on disk.
 
 
+@dataclass(frozen=True)
+class GrammarConfig:
+    """Configuration for connectors and sequences used by the Grammar Engine."""
+    version: str
+    connectors: tuple[str, ...]
+    sequences: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class PlannerRulesConfig:
+    """Configurable rules and severities for conflict analysis."""
+    version: str
+    duplicate_action: str
+    contradictory_action: str
+    redundant_action: str
+
+
+@dataclass(frozen=True)
+class PlannerAliasesConfig:
+    """Dictionary mapping target synonyms/aliases to canonical values."""
+    version: str
+    verbs: MappingProxyType[str, str]
+    applications: MappingProxyType[str, str]
+    folders: MappingProxyType[str, str]
+    websites: MappingProxyType[str, str]
+
+
 @dataclass
 class ReadOnlyConfig:
     """Read-only configuration container injected into ActionContext.
@@ -38,6 +65,9 @@ class ReadOnlyConfig:
     _apps: tuple[AppEntry, ...]
     _aliases: MappingProxyType  # str -> str (alias name -> resolved path)
     _websites: MappingProxyType # str -> str (alias name -> url)
+    grammar: GrammarConfig | None = None
+    planner_rules: PlannerRulesConfig | None = None
+    planner_aliases: PlannerAliasesConfig | None = None
 
     def get_app(self, alias: str) -> AppEntry | None:
         """Return the AppEntry for the given alias, or None if not registered."""
@@ -87,10 +117,16 @@ class ConfigLoader:
         apps = self._load_apps()
         aliases = self._load_aliases()
         websites = self._load_websites()
+        grammar = self._load_grammar()
+        planner_rules = self._load_planner_rules()
+        planner_aliases = self._load_planner_aliases()
         return ReadOnlyConfig(
             _apps=tuple(apps),
             _aliases=MappingProxyType(aliases),
             _websites=MappingProxyType(websites),
+            grammar=grammar,
+            planner_rules=planner_rules,
+            planner_aliases=planner_aliases,
         )
 
     # ── Private helpers ────────────────────────────────────────────────────────
@@ -195,3 +231,52 @@ class ConfigLoader:
             }
         
         return {}
+
+    def _load_grammar(self) -> GrammarConfig | None:
+        """Load grammar connector and sequence specifications."""
+        file = self._config_dir / "grammar.json"
+        if not file.exists():
+            return None
+        try:
+            raw = json.loads(file.read_text(encoding="utf-8"))
+            return GrammarConfig(
+                version=raw.get("version", "1.0"),
+                connectors=tuple(raw.get("connectors", [])),
+                sequences=tuple(raw.get("sequences", [])),
+            )
+        except Exception:
+            return None
+
+    def _load_planner_rules(self) -> PlannerRulesConfig | None:
+        """Load configurable rules and severities for conflict analysis."""
+        file = self._config_dir / "planner_rules.json"
+        if not file.exists():
+            return None
+        try:
+            raw = json.loads(file.read_text(encoding="utf-8"))
+            return PlannerRulesConfig(
+                version=raw.get("version", "1.0"),
+                duplicate_action=raw.get("duplicate_action", "warning"),
+                contradictory_action=raw.get("contradictory_action", "warning"),
+                redundant_action=raw.get("redundant_action", "information"),
+            )
+        except Exception:
+            return None
+
+    def _load_planner_aliases(self) -> PlannerAliasesConfig | None:
+        """Load verbs, applications, folders, and website alias mappings."""
+        file = self._config_dir / "planner_aliases.json"
+        if not file.exists():
+            return None
+        try:
+            raw = json.loads(file.read_text(encoding="utf-8"))
+            return PlannerAliasesConfig(
+                version=raw.get("version", "1.0"),
+                verbs=MappingProxyType(raw.get("verbs", {})),
+                applications=MappingProxyType(raw.get("applications", {})),
+                folders=MappingProxyType(raw.get("folders", {})),
+                websites=MappingProxyType(raw.get("websites", {})),
+            )
+        except Exception:
+            return None
+

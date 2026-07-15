@@ -6,8 +6,10 @@ from types import MappingProxyType
 import pytest
 
 from backend.config.config_loader import AppEntry, ReadOnlyConfig
+from pydantic import ValidationError
 from backend.planner.planning_errors import PlannerErrorCode, PlanningError
-from backend.planner.target_resolver import ResolvedTarget, TargetResolver
+from backend.planner.target_resolver import TargetResolver
+from backend.models.resolved_action import ResolvedAction
 from backend.registry.application_registry import ApplicationRegistry
 from backend.registry.folder_registry import FolderRegistry
 from backend.registry.website_registry import WebsiteRegistry
@@ -59,8 +61,8 @@ def resolver() -> TargetResolver:
 class TestApplicationResolution:
     def test_chrome_resolves_to_application_open(self, resolver):
         result = resolver.resolve("open", "chrome")
-        assert result == ResolvedTarget(
-            alias="chrome",
+        assert result == ResolvedAction(
+            target="chrome",
             capability="application.open",
             resource_type="application",
         )
@@ -86,8 +88,8 @@ class TestApplicationResolution:
 class TestFolderResolution:
     def test_downloads_resolves_to_folder_open(self, resolver):
         result = resolver.resolve("open", "downloads")
-        assert result == ResolvedTarget(
-            alias="downloads",
+        assert result == ResolvedAction(
+            target="downloads",
             capability="folder.open",
             resource_type="folder",
         )
@@ -108,8 +110,8 @@ class TestFolderResolution:
 class TestWebsiteResolution:
     def test_github_resolves_to_website_open(self, resolver):
         result = resolver.resolve("open", "github")
-        assert result == ResolvedTarget(
-            alias="github",
+        assert result == ResolvedAction(
+            target="github",
             capability="website.open",
             resource_type="website",
         )
@@ -177,7 +179,7 @@ class TestResolveAll:
 
     def test_preserves_order(self, resolver):
         results = resolver.resolve_all("open", ["downloads", "chrome", "github"])
-        assert [r.alias for r in results] == ["downloads", "chrome", "github"]
+        assert [r.target for r in results] == ["downloads", "chrome", "github"]
 
     def test_fails_fast_on_unknown(self, resolver):
         with pytest.raises(PlanningError) as exc:
@@ -185,15 +187,15 @@ class TestResolveAll:
         assert exc.value.error_code == PlannerErrorCode.UNKNOWN_TARGET
 
 
-# ── ResolvedTarget dataclass ───────────────────────────────────────────────────
+# ── ResolvedAction model ───────────────────────────────────────────────────
 
-class TestResolvedTargetDataclass:
+class TestResolvedActionModel:
     def test_equality(self):
-        a = ResolvedTarget(alias="chrome", capability="application.open", resource_type="application")
-        b = ResolvedTarget(alias="chrome", capability="application.open", resource_type="application")
+        a = ResolvedAction(target="chrome", capability="application.open", resource_type="application")
+        b = ResolvedAction(target="chrome", capability="application.open", resource_type="application")
         assert a == b
 
     def test_frozen(self):
-        rt = ResolvedTarget(alias="chrome", capability="application.open", resource_type="application")
-        with pytest.raises((AttributeError, TypeError)):
-            rt.alias = "vscode"  # type: ignore[misc]
+        rt = ResolvedAction(target="chrome", capability="application.open", resource_type="application")
+        with pytest.raises((AttributeError, TypeError, ValidationError)):
+            rt.target = "vscode"  # type: ignore[misc]

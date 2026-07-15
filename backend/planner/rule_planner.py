@@ -1,20 +1,3 @@
-"""RulePlanner — deterministic Natural Language Planner for Sprint 003.
-
-Implements BasePlanner using the four-stage pipeline:
-  Tokenizer → Normalizer → IntentDetector → TargetResolver → ActionPlan
-
-Engineering Rules:
-  - Implements BasePlanner — the only planner contract accepted downstream.
-  - Returns PlannerResult, not ActionPlan directly.
-  - Never executes actions; never accesses the OS.
-  - Never bypasses the Validator or Safety Policy.
-  - Sets plan.created_by = "rule_planner".
-  - Sets plan.goal = normalised command text.
-  - Detects and warns on duplicate targets (does not fail).
-  - Emits a structured log entry after each pipeline stage.
-
-Performance target: entire pipeline < 20 ms for commands with ≤ 10 actions.
-"""
 from __future__ import annotations
 
 import time
@@ -23,16 +6,20 @@ from pathlib import Path
 
 from backend.logging.logger import StructuredLogger
 from backend.models.action_plan import ActionPlan, ActionStep
-from backend.models.planner_result import PlannerResult
+from backend.models.planner_result import PlannerResult, PlannerDiagnostics
 from backend.planner.base_planner import BasePlanner
-from backend.planner.intent_detector import IntentDetector
 from backend.planner.normalizer import Normalizer
 from backend.planner.planning_errors import PlannerErrorCode, PlanningError
 from backend.planner.target_resolver import TargetResolver
 from backend.planner.tokenizer import Tokenizer
+from backend.planner.grammar_parser import GrammarParser
+from backend.planner.intent_grouper import IntentGrouper
+from backend.planner.scope_resolver import ScopeResolver
+from backend.planner.conflict_analyzer import ConflictAnalyzer
 from backend.registry.application_registry import ApplicationRegistry
 from backend.registry.folder_registry import FolderRegistry
 from backend.registry.website_registry import WebsiteRegistry
+from backend.config.config_loader import ReadOnlyConfig
 
 _PLANNER_NAME = "rule_planner"
 
@@ -44,8 +31,9 @@ class RulePlanner(BasePlanner):
         app_registry:     ApplicationRegistry (injected from app.state).
         folder_registry:  FolderRegistry (injected from app.state).
         website_registry: WebsiteRegistry (injected from app.state).
-        config_dir:       Path to the directory containing planner_aliases.json.
+        config_dir:       Path to the directory containing planner configs.
         logger:           StructuredLogger for pipeline observability.
+        config:           Pre-loaded ReadOnlyConfig containing grammar/rules.
     """
 
     def __init__(
@@ -53,12 +41,26 @@ class RulePlanner(BasePlanner):
         app_registry: ApplicationRegistry,
         folder_registry: FolderRegistry,
         website_registry: WebsiteRegistry,
-        config_dir: Path,
+        config_dir: Path | None = None,
         logger: StructuredLogger | None = None,
+        config: ReadOnlyConfig | None = None,
     ) -> None:
-        self._tokenizer      = Tokenizer()
-        self._normalizer     = Normalizer(config_dir=config_dir)
-        self._intent_detector = IntentDetector()
+        from backend.config.config_loader import ConfigLoader
+        # 1. Resolve configuration
+        if config is None and config_dir is not None:
+            config_loader = ConfigLoader(config_dir=config_dir)
+            config = config_loader.load()
+
+        grammar_cfg = config.grammar if config is not None else None
+        aliases_cfg = config.planner_aliases if config is not None else None
+        rules_cfg = config.planner_rules if config is not None else None
+
+        self._tokenizer = Tokenizer(grammar_config=grammar_cfg)
+        self._normalizer = Normalizer(planner_aliases=aliases_cfg, config_dir=config_dir)
+        self._grammar_parser = GrammarParser(grammar_config=grammar_cfg)
+        self._intent_grouper = IntentGrouper()
+        self._scope_resolver = ScopeResolver()
+        self._conflict_analyzer = ConflictAnalyzer(rules_config=rules_cfg)
         self._target_resolver = TargetResolver(
             app_registry=app_registry,
             folder_registry=folder_registry,
@@ -74,9 +76,12 @@ class RulePlanner(BasePlanner):
         Stages (in order):
           1. Tokenizer
           2. Normalizer
-          3. IntentDetector
-          4. TargetResolver
-          5. ActionPlan construction
+          3. Grammar Parser
+          4. Intent Grouper
+          5. Verb Scope Resolver
+          6. Target Resolver
+          7. Conflict Analyzer
+          8. ActionPlan construction
 
         Args:
             command: Plain-text command from the user.
@@ -120,58 +125,79 @@ class RulePlanner(BasePlanner):
         # ── Stage 1: Tokenizer ─────────────────────────────────────────────────
         stage_start = time.perf_counter() * 1000
         tokens = self._tokenizer.tokenize(command)
+        tokenizer_ms = time.perf_counter() * 1000 - stage_start
         self._log("stage_tokenizer", {
             "token_count": len(tokens),
-            "duration_ms": round(time.perf_counter() * 1000 - stage_start, 2),
+            "duration_ms": round(tokenizer_ms, 2),
         })
 
         # ── Stage 2: Normalizer ────────────────────────────────────────────────
         stage_start = time.perf_counter() * 1000
         normalised = self._normalizer.normalize(tokens)
         normalised_str = " ".join(normalised)
+        normalizer_ms = time.perf_counter() * 1000 - stage_start
         self._log("stage_normalizer", {
             "normalised_input": normalised_str,
-            "duration_ms": round(time.perf_counter() * 1000 - stage_start, 2),
+            "duration_ms": round(normalizer_ms, 2),
         })
 
-        # ── Stage 3: IntentDetector ────────────────────────────────────────────
+        # ── Stage 3: Grammar Parser ────────────────────────────────────────────
         stage_start = time.perf_counter() * 1000
-        sub_commands = self._intent_detector.detect(normalised)
-        self._log("stage_intent_detector", {
-            "sub_command_count": len(sub_commands),
-            "intents": [sc.intent for sc in sub_commands],
-            "duration_ms": round(time.perf_counter() * 1000 - stage_start, 2),
+        grammar_tree = self._grammar_parser.parse(normalised, command)
+        grammar_parser_ms = time.perf_counter() * 1000 - stage_start
+        self._log("stage_grammar_parser", {
+            "clause_count": len(grammar_tree.clauses),
+            "duration_ms": round(grammar_parser_ms, 2),
         })
 
-        # ── Stage 4: TargetResolver ────────────────────────────────────────────
+        # ── Stage 4: Intent Grouper ────────────────────────────────────────────
         stage_start = time.perf_counter() * 1000
-        all_resolved = []
-        for sc in sub_commands:
-            resolved = self._target_resolver.resolve_all(sc.intent, sc.targets)
-            all_resolved.extend(resolved)
+        intent_groups = self._intent_grouper.group(grammar_tree)
+        intent_grouper_ms = time.perf_counter() * 1000 - stage_start
+        self._log("stage_intent_grouper", {
+            "intent_group_count": len(intent_groups),
+            "duration_ms": round(intent_grouper_ms, 2),
+        })
+
+        # ── Stage 5: Verb Scope Resolver ───────────────────────────────────────
+        stage_start = time.perf_counter() * 1000
+        expanded_groups = self._scope_resolver.resolve_scope(intent_groups)
+        scope_resolver_ms = time.perf_counter() * 1000 - stage_start
+        self._log("stage_scope_resolver", {
+            "expanded_count": len(expanded_groups),
+            "duration_ms": round(scope_resolver_ms, 2),
+        })
+
+        # ── Stage 6: Target Resolver ───────────────────────────────────────────
+        stage_start = time.perf_counter() * 1000
+        resolved_actions = []
+        for eg in expanded_groups:
+            resolved = self._target_resolver.resolve(eg.verb, eg.targets[0])
+            resolved_actions.append(resolved)
+        target_resolver_ms = time.perf_counter() * 1000 - stage_start
         self._log("stage_target_resolver", {
-            "resolved_count": len(all_resolved),
-            "resolved": [(r.alias, r.capability) for r in all_resolved],
-            "duration_ms": round(time.perf_counter() * 1000 - stage_start, 2),
+            "resolved_count": len(resolved_actions),
+            "duration_ms": round(target_resolver_ms, 2),
         })
 
-        # ── Stage 5: Build ActionPlan ──────────────────────────────────────────
-        warnings: list[str] = []
-        seen_targets: set[str] = set()
+        # ── Stage 7: Conflict Analyzer ─────────────────────────────────────────
+        stage_start = time.perf_counter() * 1000
+        warnings, infos = self._conflict_analyzer.analyze(resolved_actions)
+        conflict_analyzer_ms = time.perf_counter() * 1000 - stage_start
+        self._log("stage_conflict_analyzer", {
+            "warning_count": len(warnings),
+            "info_count": len(infos),
+            "duration_ms": round(conflict_analyzer_ms, 2),
+        })
+
+        # ── Stage 8: Build ActionPlan ──────────────────────────────────────────
+        stage_start = time.perf_counter() * 1000
         steps: list[ActionStep] = []
-
-        for i, resolved in enumerate(all_resolved):
-            # Warn on duplicates — do not fail.
-            target_key = f"{resolved.capability}:{resolved.alias}"
-            if target_key in seen_targets:
-                warnings.append(f"Duplicate target detected: '{resolved.alias}' ({resolved.capability}).")
-            seen_targets.add(target_key)
-
-            # Build ActionStep with correct parameter key per capability.
-            parameters = self._build_parameters(resolved.capability, resolved.alias)
+        for i, action in enumerate(resolved_actions):
+            parameters = self._build_parameters(action.capability, action.target)
             steps.append(ActionStep(
                 id=f"step-{i + 1}",
-                action=resolved.capability,
+                action=action.capability,
                 parameters=parameters,
             ))
 
@@ -182,13 +208,35 @@ class RulePlanner(BasePlanner):
             created_by=_PLANNER_NAME,
             steps=steps,
         )
-
-        elapsed = time.perf_counter() * 1000 - start_ms
-        self._log("pipeline_complete", {
+        rule_planner_ms = time.perf_counter() * 1000 - stage_start
+        self._log("stage_rule_planner", {
             "step_count": len(steps),
-            "warning_count": len(warnings),
-            "planning_time_ms": round(elapsed, 2),
+            "duration_ms": round(rule_planner_ms, 2),
         })
+
+        # ── Calculate total and compile diagnostics ────────────────────────────
+        total_ms = time.perf_counter() * 1000 - start_ms
+
+        self._log("timing_breakdown", {
+            "Tokenizer": f"{tokenizer_ms:.2f} ms",
+            "Normalizer": f"{normalizer_ms:.2f} ms",
+            "Grammar Parser": f"{grammar_parser_ms:.2f} ms",
+            "Intent Grouper": f"{intent_grouper_ms:.2f} ms",
+            "Scope Resolver": f"{scope_resolver_ms:.2f} ms",
+            "Target Resolver": f"{target_resolver_ms:.2f} ms",
+            "Conflict Analyzer": f"{conflict_analyzer_ms:.2f} ms",
+            "Rule Planner": f"{rule_planner_ms:.2f} ms",
+            "Total": f"{total_ms:.2f} ms",
+        })
+
+        diagnostics = PlannerDiagnostics(
+            planning_time_ms=round(total_ms, 2),
+            token_count=len(tokens),
+            clause_count=len(grammar_tree.clauses),
+            intent_group_count=len(intent_groups),
+            resolved_target_count=len(resolved_actions),
+            warning_count=len(warnings),
+        )
 
         return PlannerResult(
             success=True,
@@ -196,7 +244,9 @@ class RulePlanner(BasePlanner):
             normalized_input=normalised_str,
             confidence=1.0,
             warnings=warnings,
-            planning_time_ms=round(elapsed, 2),
+            information=infos,
+            diagnostics=diagnostics,
+            planning_time_ms=round(total_ms, 2),
             token_count=len(tokens),
             step_count=len(steps),
             planner_name=_PLANNER_NAME,
@@ -207,18 +257,18 @@ class RulePlanner(BasePlanner):
     # ── Helpers ────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _build_parameters(capability: str, alias: str) -> dict:
+    def _build_parameters(capability: str, target: str) -> dict:
         """Build the parameters dict for an ActionStep.
 
         Each executor expects a specific parameter key:
-          application.open / application.close  → {"app": alias}
-          folder.open                            → {"alias": alias}
-          website.open                           → {"alias": alias}
+          application.open / application.close  → {"app": target}
+          folder.open                            → {"alias": target}
+          website.open                           → {"alias": target}
         """
         if capability in ("application.open", "application.close"):
-            return {"app": alias}
+            return {"app": target}
         # folder.open and website.open both use "alias"
-        return {"alias": alias}
+        return {"alias": target}
 
     def _log(self, event: str, data: dict) -> None:
         """Emit a structured log entry if a logger is available."""
@@ -228,3 +278,4 @@ class RulePlanner(BasePlanner):
                 planner=_PLANNER_NAME,
                 **data,
             )
+

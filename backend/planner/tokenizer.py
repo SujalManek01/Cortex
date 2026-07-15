@@ -31,6 +31,7 @@ import unicodedata
 from dataclasses import dataclass
 from enum import StrEnum
 
+from backend.config.config_loader import GrammarConfig
 from backend.planner.planning_errors import PlannerErrorCode, PlanningError
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ _WORD_CONNECTORS: frozenset[str] = frozenset({"and", "then", "afterwards"})
 class TokenType(StrEnum):
     WORD      = "WORD"
     CONNECTOR = "CONNECTOR"
+    SEQUENCE  = "SEQUENCE"
     UNKNOWN   = "UNKNOWN"
 
 
@@ -72,8 +74,16 @@ class Token:
 class Tokenizer:
     """Converts raw command text into a list of Token objects.
 
-    This class has no external dependencies — it performs only lexical analysis.
+    This class uses GrammarConfig to perform constant-time token classification.
     """
+
+    def __init__(self, grammar_config: GrammarConfig | None = None) -> None:
+        if grammar_config is not None:
+            self._connectors = frozenset(grammar_config.connectors)
+            self._sequences = frozenset(grammar_config.sequences)
+        else:
+            self._connectors = frozenset({",", "&", "and"})
+            self._sequences = frozenset({"then", "after", "afterwards"})
 
     def tokenize(self, raw: str) -> list[Token]:
         """Tokenize *raw* command text.
@@ -87,8 +97,7 @@ class Tokenizer:
         Raises:
             PlanningError(EMPTY_COMMAND): If the command is empty after trimming.
             PlanningError(COMMAND_TOO_LONG): If the command exceeds MAX_COMMAND_CHARS.
-            PlanningError(TOKENIZATION_ERROR): If the command contains shell metacharacters
-                                               or other unacceptable input.
+            PlanningError(TOKENIZATION_ERROR): If the command contains shell metacharacters.
         """
         # ── 1. Guard: empty ───────────────────────────────────────────────────
         if not raw or not raw.strip():
@@ -133,11 +142,6 @@ class Tokenizer:
             if not word:
                 continue
             token_type = self._classify(word)
-            if token_type == TokenType.UNKNOWN:
-                raise PlanningError(
-                    f"Unrecognised token '{word}' in command.",
-                    PlannerErrorCode.TOKENIZATION_ERROR,
-                )
             tokens.append(Token(type=token_type, value=word))
 
         if not tokens:
@@ -150,13 +154,15 @@ class Tokenizer:
 
     # ── Private ───────────────────────────────────────────────────────────────
 
-    @staticmethod
-    def _classify(word: str) -> TokenType:
+    def _classify(self, word: str) -> TokenType:
         """Classify a single lowercased word into a TokenType."""
-        if word in _CHAR_CONNECTORS or word in _WORD_CONNECTORS:
+        if word in self._connectors:
             return TokenType.CONNECTOR
+        if word in self._sequences:
+            return TokenType.SEQUENCE
         # Reject anything that is not alphanumeric or hyphen/apostrophe
         # (these appear legitimately in application names like "vs-code")
         if re.fullmatch(r"[a-z0-9][a-z0-9\-']*", word):
             return TokenType.WORD
         return TokenType.UNKNOWN
+

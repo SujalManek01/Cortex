@@ -11,6 +11,28 @@ from pydantic import BaseModel, Field
 from backend.models.action_plan import ActionPlan
 
 
+
+class PlannerWarning(BaseModel):
+    """Structured warning returned by the planner."""
+    code: str
+    message: str
+
+
+class PlannerInfo(BaseModel):
+    """Structured informational log returned by the planner."""
+    message: str
+
+
+class PlannerDiagnostics(BaseModel):
+    """Detailed performance and structure diagnostics for the planning run."""
+    planning_time_ms: float = Field(default=0.0, ge=0.0)
+    token_count: int = Field(default=0, ge=0)
+    clause_count: int = Field(default=0, ge=0)
+    intent_group_count: int = Field(default=0, ge=0)
+    resolved_target_count: int = Field(default=0, ge=0)
+    warning_count: int = Field(default=0, ge=0)
+
+
 class PlannerResult(BaseModel):
     """Structured output from any BasePlanner implementation.
 
@@ -26,13 +48,17 @@ class PlannerResult(BaseModel):
         1.0 for deterministic rule-based planning; intermediate values
         reserved for future AI planners.
     warnings
-        Non-fatal observations (e.g., duplicate targets detected).
+        Structured warnings (e.g. duplicate targets).
+    information
+        Structured informational messages (e.g. verb scope expansion details).
+    diagnostics
+        Detailed metrics and performance timings for the planning run.
     planning_time_ms
-        Wall-clock time consumed by the full planning pipeline.
+        Wall-clock time consumed by the full planning pipeline (for compatibility).
     token_count
-        Number of lexical tokens in the normalized command.
+        Number of lexical tokens in the normalized command (for compatibility).
     step_count
-        Number of ActionSteps in the generated plan (0 on failure).
+        Number of ActionSteps in the generated plan (0 on failure) (for compatibility).
     planner_name
         Identifier of the planner that produced this result.
     error_code
@@ -49,7 +75,11 @@ class PlannerResult(BaseModel):
 
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
 
-    warnings: list[str] = Field(default_factory=list)
+    warnings: list[PlannerWarning] = Field(default_factory=list)
+
+    information: list[PlannerInfo] = Field(default_factory=list)
+
+    diagnostics: PlannerDiagnostics | None = None
 
     planning_time_ms: float = Field(default=0.0, ge=0.0)
 
@@ -62,3 +92,4 @@ class PlannerResult(BaseModel):
     error_code: str | None = None
 
     error_message: str | None = None
+

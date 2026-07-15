@@ -71,11 +71,12 @@ class TestPostPlan:
 
     @pytest.mark.asyncio
     async def test_plan_warnings_for_duplicate(self, http_client: AsyncClient):
-        resp = await http_client.post("/plan", json={"command": "Open Chrome then Chrome"})
+        resp = await http_client.post("/plan", json={"command": "Open Chrome then open Chrome"})
         assert resp.status_code == 200
         body = resp.json()
         assert body["success"] is True
         assert len(body["warnings"]) > 0
+        assert body["warnings"][0]["code"] == "DUPLICATE_ACTION"
 
     @pytest.mark.asyncio
     async def test_plan_planning_time_present(self, http_client: AsyncClient):
@@ -85,12 +86,12 @@ class TestPostPlan:
         assert body["planning_time_ms"] >= 0
 
     @pytest.mark.asyncio
-    async def test_plan_mixed_intents_fails(self, http_client: AsyncClient):
+    async def test_plan_mixed_intents_succeeds(self, http_client: AsyncClient):
         resp = await http_client.post("/plan", json={"command": "Open Chrome then close Notepad"})
         assert resp.status_code == 200
         body = resp.json()
-        assert body["success"] is False
-        assert body["error"]["error_code"] == "MIXED_INTENTS"
+        assert body["success"] is True
+        assert body["step_count"] == 2
 
 
 # ── POST /command ──────────────────────────────────────────────────────────────
@@ -110,9 +111,9 @@ class TestPostCommand:
         assert resp.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_command_mixed_intents_returns_400(self, http_client: AsyncClient):
+    async def test_command_mixed_intents_succeeds(self, http_client: AsyncClient):
         resp = await http_client.post("/command", json={"command": "Open Chrome then close Notepad"})
-        assert resp.status_code == 400
+        assert resp.status_code == 200
 
 
 # ── Backward compatibility: POST /execute still works ─────────────────────────

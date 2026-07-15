@@ -25,32 +25,38 @@ def _words(*values: str) -> list[Token]:
     return [Token(type=TokenType.WORD, value=v) for v in values]
 
 
+def _sequence(value: str = "then") -> Token:
+    return Token(type=TokenType.SEQUENCE, value=value)
+
+
 def _connector(value: str = "and") -> Token:
     return Token(type=TokenType.CONNECTOR, value=value)
+
 
 
 # ── Connector normalisation ────────────────────────────────────────────────────
 
 class TestConnectorNormalization:
-    def test_and_becomes_then(self, normalizer):
+    def test_and_becomes_and(self, normalizer):
         tokens = [*_words("open", "chrome"), _connector("and"), *_words("github")]
         result = normalizer.normalize(tokens)
-        assert result == ["open", "chrome", "then", "github"]
+        assert result == ["open", "chrome", "and", "github"]
 
-    def test_ampersand_becomes_then(self, normalizer):
+    def test_ampersand_becomes_and(self, normalizer):
         tokens = [*_words("open", "chrome"), _connector("&"), *_words("github")]
         result = normalizer.normalize(tokens)
-        assert result == ["open", "chrome", "then", "github"]
+        assert result == ["open", "chrome", "and", "github"]
 
-    def test_comma_becomes_then(self, normalizer):
+    def test_comma_becomes_and(self, normalizer):
         tokens = [*_words("open", "chrome"), _connector(","), *_words("github")]
         result = normalizer.normalize(tokens)
-        assert result == ["open", "chrome", "then", "github"]
+        assert result == ["open", "chrome", "and", "github"]
 
     def test_then_stays_then(self, normalizer):
-        tokens = [*_words("open", "chrome"), _connector("then"), *_words("github")]
+        tokens = [*_words("open", "chrome"), _sequence("then"), *_words("github")]
         result = normalizer.normalize(tokens)
         assert result == ["open", "chrome", "then", "github"]
+
 
 
 # ── Verb alias expansion ──────────────────────────────────────────────────────
@@ -164,10 +170,10 @@ class TestFullSentence:
             *_words("vs", "code"),
         ]
         result = normalizer.normalize(tokens)
-        assert result == ["open", "chrome", "then", "vscode"]
+        assert result == ["open", "chrome", "and", "vscode"]
 
     def test_launch_chrome_then_github(self, normalizer):
-        tokens = [*_words("launch", "chrome"), _connector("then"), *_words("github")]
+        tokens = [*_words("launch", "chrome"), _sequence("then"), *_words("github")]
         result = normalizer.normalize(tokens)
         assert result == ["open", "chrome", "then", "github"]
 
@@ -192,3 +198,19 @@ class TestErrors:
         with pytest.raises(PlanningError) as exc:
             Normalizer(config_dir=tmp_path)
         assert exc.value.error_code == PlannerErrorCode.NORMALIZATION_ERROR
+
+
+def test_normalizer_constructor_with_aliases():
+    from types import MappingProxyType
+    from backend.config.config_loader import PlannerAliasesConfig
+    aliases = PlannerAliasesConfig(
+        version="1.0",
+        verbs=MappingProxyType({"start": "open"}),
+        applications=MappingProxyType({"g chrome": "chrome"}),
+        folders=MappingProxyType({}),
+        websites=MappingProxyType({})
+    )
+    norm = Normalizer(planner_aliases=aliases)
+    res = norm.normalize([Token(type=TokenType.WORD, value="start"), Token(type=TokenType.WORD, value="g"), Token(type=TokenType.WORD, value="chrome")])
+    assert res == ["open", "chrome"]
+

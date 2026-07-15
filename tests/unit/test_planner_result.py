@@ -5,7 +5,7 @@ import uuid
 
 import pytest
 
-from backend.models.planner_result import PlannerResult
+from backend.models.planner_result import PlannerResult, PlannerWarning
 from backend.models.action_plan import ActionPlan, ActionStep
 
 
@@ -53,11 +53,11 @@ class TestPlannerResultSuccess:
     def test_warnings_preserved(self):
         result = PlannerResult(
             success=True, plan=_make_plan(),
-            warnings=["Duplicate target detected."],
+            warnings=[PlannerWarning(code="DUPLICATE_ACTION", message="Duplicate target detected.")],
             planner_name="rule_planner",
         )
         assert len(result.warnings) == 1
-        assert "Duplicate" in result.warnings[0]
+        assert "Duplicate" in result.warnings[0].message
 
 
 class TestPlannerResultFailure:

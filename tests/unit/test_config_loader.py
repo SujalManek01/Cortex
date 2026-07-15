@@ -74,3 +74,54 @@ def test_config_loader_loads_versioned_schemas(tmp_path: Path):
     website_url = config.get_website("mock_site")
     assert website_url == "https://example.mock"
     assert "mock_site" in config.all_websites
+
+
+def test_config_loader_loads_sprint004_configs(tmp_path: Path):
+    # Setup mock files for Sprint 004
+    grammar_data = {
+        "version": "1.0",
+        "connectors": ["and", "&", ","],
+        "sequences": ["then", "after", "afterwards"]
+    }
+    rules_data = {
+        "version": "1.0",
+        "duplicate_action": "warning",
+        "contradictory_action": "warning",
+        "redundant_action": "information"
+    }
+    aliases_data = {
+        "version": "1.0",
+        "verbs": {
+            "launch": "open",
+            "run": "open"
+        },
+        "applications": {
+            "vs code": "vscode"
+        },
+        "folders": {},
+        "websites": {}
+    }
+
+    # Write to tmp directory
+    (tmp_path / "apps.json").write_text(json.dumps({}), encoding="utf-8")
+    (tmp_path / "folders.json").write_text(json.dumps({}), encoding="utf-8")
+    (tmp_path / "websites.json").write_text(json.dumps({}), encoding="utf-8")
+    (tmp_path / "grammar.json").write_text(json.dumps(grammar_data), encoding="utf-8")
+    (tmp_path / "planner_rules.json").write_text(json.dumps(rules_data), encoding="utf-8")
+    (tmp_path / "planner_aliases.json").write_text(json.dumps(aliases_data), encoding="utf-8")
+
+    loader = ConfigLoader(tmp_path)
+    config = loader.load()
+
+    assert config.grammar is not None
+    assert config.grammar.connectors == ("and", "&", ",")
+    assert config.grammar.sequences == ("then", "after", "afterwards")
+
+    assert config.planner_rules is not None
+    assert config.planner_rules.duplicate_action == "warning"
+    assert config.planner_rules.redundant_action == "information"
+
+    assert config.planner_aliases is not None
+    assert config.planner_aliases.verbs["launch"] == "open"
+    assert config.planner_aliases.applications["vs code"] == "vscode"
+

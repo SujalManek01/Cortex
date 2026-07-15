@@ -115,13 +115,13 @@ class TestMultiActionPlan:
 
     @pytest.mark.asyncio
     async def test_three_step_plan(self, planner):
-        result = await planner.plan("Open Chrome then VS Code and Downloads")
+        result = await planner.plan("Open Chrome then open VS Code and Downloads")
         assert result.success is True
         assert len(result.plan.steps) == 3
 
     @pytest.mark.asyncio
     async def test_step_order_preserved(self, planner):
-        result = await planner.plan("Open Downloads then Chrome then GitHub")
+        result = await planner.plan("Open Downloads then open Chrome then open GitHub")
         assert result.success is True
         steps = result.plan.steps
         assert steps[0].parameters["alias"] == "downloads"
@@ -232,14 +232,14 @@ class TestPlannerResultMetadata:
 class TestDuplicateTargetWarning:
     @pytest.mark.asyncio
     async def test_duplicate_target_warns(self, planner):
-        result = await planner.plan("Open Chrome then Chrome")
+        result = await planner.plan("Open Chrome then open Chrome")
         assert result.success is True
         assert len(result.plan.steps) == 2
-        assert any("Duplicate" in w for w in result.warnings)
+        assert any("Duplicate" in w.message for w in result.warnings)
 
     @pytest.mark.asyncio
     async def test_no_warning_without_duplicate(self, planner):
-        result = await planner.plan("Open Chrome then GitHub")
+        result = await planner.plan("Open Chrome and GitHub")
         assert not result.warnings
 
 
@@ -261,10 +261,12 @@ class TestFailurePaths:
         assert result.error_code == PlannerErrorCode.UNKNOWN_TARGET
 
     @pytest.mark.asyncio
-    async def test_mixed_intents_fails(self, planner):
+    async def test_mixed_intents_succeeds(self, planner):
         result = await planner.plan("Open Chrome then close Spotify")
-        assert result.success is False
-        assert result.error_code == PlannerErrorCode.MIXED_INTENTS
+        assert result.success is True
+        assert len(result.plan.steps) == 2
+        assert result.plan.steps[0].action == "application.open"
+        assert result.plan.steps[1].action == "application.close"
 
     @pytest.mark.asyncio
     async def test_unknown_intent_fails(self, planner):

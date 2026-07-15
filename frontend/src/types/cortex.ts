@@ -50,7 +50,7 @@ export interface ExecuteResponse {
   results: ExecutionResultSchema[]
 }
 
-// ── Sprint 003: Planning response types ───────────────────────────────────────
+// ── Sprint 003 & 004: Planning response types ───────────────────────────────────
 
 export interface PlanStepSchema {
   id: string
@@ -63,12 +63,32 @@ export interface PlanningErrorResponse {
   message: string
 }
 
+export interface PlannerWarning {
+  code: string
+  message: string
+}
+
+export interface PlannerInfo {
+  message: string
+}
+
+export interface PlannerDiagnostics {
+  planning_time_ms: number
+  token_count: number
+  clause_count: number
+  intent_group_count: number
+  resolved_target_count: number
+  warning_count: number
+}
+
 export interface PlanResponse {
   success: boolean
   planner: string
   confidence: number
   normalized_input: string
-  warnings: string[]
+  warnings: PlannerWarning[]
+  information: PlannerInfo[]
+  diagnostics: PlannerDiagnostics | null
   planning_time_ms: number
   token_count: number
   step_count: number

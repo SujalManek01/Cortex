@@ -34,10 +34,7 @@ An AMBIGUOUS_TARGET error is raised only when a target matches in more than
 one registry simultaneously — the configuration files themselves would need to
 contain duplicates for this to occur.
 """
-from __future__ import annotations
-
-from dataclasses import dataclass
-
+from backend.models.resolved_action import ResolvedAction
 from backend.planner.planning_errors import PlannerErrorCode, PlanningError
 from backend.registry.application_registry import ApplicationRegistry
 from backend.registry.folder_registry import FolderRegistry
@@ -49,21 +46,6 @@ _CAPABILITY_APP_OPEN    = "application.open"
 _CAPABILITY_APP_CLOSE   = "application.close"
 _CAPABILITY_FOLDER_OPEN = "folder.open"
 _CAPABILITY_WEBSITE_OPEN = "website.open"
-
-
-@dataclass(frozen=True)
-class ResolvedTarget:
-    """The result of resolving a normalised target string against registries.
-
-    Fields
-    ------
-    alias       : The canonical alias used for registry lookup.
-    capability  : The Cortex capability string (e.g. "application.open").
-    resource_type : One of "application", "folder", "website".
-    """
-    alias: str
-    capability: str
-    resource_type: str
 
 
 class TargetResolver:
@@ -85,7 +67,7 @@ class TargetResolver:
         self._folders = folder_registry
         self._websites = website_registry
 
-    def resolve(self, intent: str, target: str) -> ResolvedTarget:
+    def resolve(self, intent: str, target: str) -> ResolvedAction:
         """Resolve a single normalised target string for a given intent.
 
         Args:
@@ -93,35 +75,35 @@ class TargetResolver:
             target: Normalised target alias (e.g. "chrome", "downloads", "github").
 
         Returns:
-            ResolvedTarget with capability and resource_type populated.
+            ResolvedAction with capability and resource_type populated.
 
         Raises:
             PlanningError(UNKNOWN_TARGET): If the target is not registered.
             PlanningError(AMBIGUOUS_TARGET): If the target matches multiple registries.
         """
-        matches: list[ResolvedTarget] = []
+        matches: list[ResolvedAction] = []
 
         # ── 1. Application Registry ───────────────────────────────────────────
         if self._apps.is_registered(target):
             cap = _CAPABILITY_APP_OPEN if intent == "open" else _CAPABILITY_APP_CLOSE
-            matches.append(ResolvedTarget(
-                alias=target,
+            matches.append(ResolvedAction(
+                target=target,
                 capability=cap,
                 resource_type="application",
             ))
 
         # ── 2. Folder Registry ────────────────────────────────────────────────
         if self._folders.is_registered(target):
-            matches.append(ResolvedTarget(
-                alias=target,
+            matches.append(ResolvedAction(
+                target=target,
                 capability=_CAPABILITY_FOLDER_OPEN,
                 resource_type="folder",
             ))
 
         # ── 3. Website Registry ───────────────────────────────────────────────
         if self._websites.is_registered(target):
-            matches.append(ResolvedTarget(
-                alias=target,
+            matches.append(ResolvedAction(
+                target=target,
                 capability=_CAPABILITY_WEBSITE_OPEN,
                 resource_type="website",
             ))
@@ -146,7 +128,7 @@ class TargetResolver:
 
     def resolve_all(
         self, intent: str, targets: list[str]
-    ) -> list[ResolvedTarget]:
+    ) -> list[ResolvedAction]:
         """Resolve all targets for a sub-command, preserving order.
 
         Args:
@@ -154,10 +136,11 @@ class TargetResolver:
             targets: Ordered list of normalised target aliases.
 
         Returns:
-            Ordered list of ResolvedTarget objects.
+            Ordered list of ResolvedAction objects.
 
         Raises:
             PlanningError(UNKNOWN_TARGET): On the first unresolvable target.
             PlanningError(AMBIGUOUS_TARGET): On the first ambiguous target.
         """
         return [self.resolve(intent, t) for t in targets]
+
